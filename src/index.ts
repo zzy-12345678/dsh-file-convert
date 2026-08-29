@@ -20,7 +20,7 @@ const CONSOLE_LOGGER: Logger = {
 
 export function apply(ctx: Context, config: ConvertConfig) {
   const logger: Logger = isLogger(ctx.logger) ? ctx.logger : CONSOLE_LOGGER
-  const router = createRouter(config)
+  const router = createRouter({ quality: config.quality, dpi: config.dpi, timeoutMs: config.timeoutMs, outputRoots: config.outputRoots })
 
   ctx.tools.register(createConvertFileTool(router, config, logger))
   ctx.tools.register(createBatchConvertTool(router, config, logger))

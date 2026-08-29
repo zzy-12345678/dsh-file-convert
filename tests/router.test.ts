@@ -51,6 +51,39 @@ describe('router pipeline', () => {
     expect(replaced.ok).toBe(true)
   })
 
+  it('refuses to overwrite the input file itself', async () => {
+    const dir = await tmpDir()
+    const input = await writeTransparentPng(dir, 'same.png')
+    const result = await router.convertFile({ input, outputFormat: 'jpg', output: input }, { logger: NULL_LOGGER })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.code).toBe('invalid_input')
+      expect(result.error.message).toMatch(/destroy the source/)
+    }
+  })
+
+  it('enforces outputRoots for explicit output paths only', async () => {
+    const dir = await tmpDir()
+    const inside = path.join(dir, 'allowed')
+    await fs.mkdir(inside, { recursive: true })
+    const scoped = createRouter({ outputRoots: [inside] })
+    const input = await writeTransparentPng(dir, 'x.png')
+
+    const blocked = await scoped.convertFile(
+      { input, outputFormat: 'jpg', output: path.join(dir, 'outside.jpg') },
+      { logger: NULL_LOGGER },
+    )
+    expect(blocked.ok).toBe(false)
+    if (!blocked.ok) {
+      expect(blocked.error.code).toBe('invalid_input')
+      expect(blocked.error.message).toMatch(/outputRoot/)
+    }
+
+    // The default output (next to the input) stays allowed with roots configured.
+    const allowed = await scoped.convertFile({ input, outputFormat: 'webp' }, { logger: NULL_LOGGER })
+    expect(allowed.ok).toBe(true)
+  })
+
   it('listConversions covers the V0.1 matrix with no missing deps', async () => {
     const statuses = await router.listConversions()
     expect(statuses.length).toBe(18)

@@ -231,7 +231,6 @@ function itemsToText(items: TextItemLike[]): string {
 }
 
 function withPageNumber(output: string, page: number, pad: number): string {
-  const ext = path.extname(output)
-  const base = output.slice(0, output.length - ext.length)
-  return `${base}-${String(page).padStart(pad, '0')}${ext}`
+  const { dir, name, ext } = path.parse(output)
+  return path.join(dir, `${name}-${String(page).padStart(pad, '0')}${ext}`)
 }

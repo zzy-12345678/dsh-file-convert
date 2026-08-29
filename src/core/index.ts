@@ -22,6 +22,7 @@ export function createRouter(defaults?: Partial<RouterDefaults>): ConversionRout
     quality: defaults?.quality ?? 85,
     dpi: defaults?.dpi ?? 150,
     timeoutMs: defaults?.timeoutMs ?? 120_000,
+    outputRoots: defaults?.outputRoots,
   })
   router.register(new ImageConverter())
   router.register(new PdfConverter())

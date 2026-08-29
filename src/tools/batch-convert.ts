@@ -9,7 +9,6 @@ import { detectFile, DetectError } from '../core/index.js'
 import type { Config } from '../config.js'
 import { formatBatchSummary, formatFailure, type BatchSummary } from '../format.js'
 
-const MAX_AUTO_DETECT = 500
 const MAX_CONCURRENCY = 4
 
 export function createBatchConvertTool(router: ConversionRouter, config: Config, logger: Logger) {
@@ -58,10 +57,17 @@ export function createBatchConvertTool(router: ConversionRouter, config: Config,
         throw new Error(`Cannot read directory ${inputDir}: ${err instanceof Error ? err.message : String(err)}`)
       }
       const files = entries.filter((e) => e.isFile()).map((e) => path.join(inputDir, e.name)).sort()
+      const maxFiles = config.batchMaxFiles
 
       const candidates: string[] = []
+      let examined = 0
+      let truncated = false
       for (const file of files) {
-        if (candidates.length >= MAX_AUTO_DETECT) break
+        if (candidates.length >= maxFiles) {
+          truncated = true
+          break
+        }
+        examined++
         if (fromFilter) {
           const ext = path.extname(file).replace(/^\./, '')
           if (formatFromExtension(ext) === fromFilter) candidates.push(file)
@@ -74,9 +80,18 @@ export function createBatchConvertTool(router: ConversionRouter, config: Config,
           /* unknown formats are simply not candidates */
         }
       }
+      const notExamined = files.length - examined
 
       if (candidates.length === 0) {
         return `No convertible files found in ${inputDir}${fromFilter ? ` with format ${fromFilter}` : ''}.`
+      }
+
+      const notes: string[] = []
+      if (truncated) {
+        notes.push(
+          `Reached the ${maxFiles}-file batch limit; ${notExamined} file(s) in the directory were not processed. ` +
+            `Raise 'batchMaxFiles' in the plugin config or narrow the run with 'input_format', then convert again.`,
+        )
       }
 
       const outputDir = args.output_dir ?? path.join(inputDir, 'output')
@@ -89,6 +104,7 @@ export function createBatchConvertTool(router: ConversionRouter, config: Config,
         converted: [],
         skipped: [],
         failed: [],
+        notes,
       }
 
       // The pool adapts to the strictest involved converter (V0.1: all support parallel).

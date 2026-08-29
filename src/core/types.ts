@@ -158,7 +158,12 @@ export interface Converter {
 
 export interface Detection {
   format: FormatId
-  confidence: 'magic' | 'extension'
+  /**
+   * 'magic' = decided by file content (binary magic, SVG/JSON sniffing);
+   * 'guess' = weak content heuristic (YAML document marker);
+   * 'extension' = decided by file name.
+   */
+  confidence: 'magic' | 'extension' | 'guess'
   mime?: string
 }
 

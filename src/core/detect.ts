@@ -14,6 +14,8 @@ const MIME_TO_FORMAT: Partial<Record<string, FormatId>> = {
 }
 
 const TEXT_SNIFF_BYTES = 512
+/** Whole-file JSON.parse is only attempted up to this size; larger files fall back to the extension. */
+const JSON_SNIFF_LIMIT = 1_000_000
 const SVG_MIME = 'image/svg+xml'
 
 export interface DetectOutcome {
@@ -28,9 +30,10 @@ export class DetectError extends Error {
 }
 
 /**
- * Detect the format of a file: magic bytes first (file-type + SVG sniffing),
- * extension as fallback. When the two disagree, magic wins and a warning is
- * returned — users rename files wrongly all the time.
+ * Detect the format of a file. Priority: binary magic bytes (file-type) →
+ * SVG content → JSON content → extension → YAML document marker. When content
+ * and extension disagree, content wins and a warning is returned — users
+ * rename files wrongly all the time.
  */
 export async function detectFile(input: string): Promise<DetectOutcome> {
   const stat = await fs.stat(input).catch(() => null)
@@ -65,9 +68,26 @@ export async function detectFile(input: string): Promise<DetectOutcome> {
     }
   }
 
-  // 3. Text formats can only be identified by extension in V0.1.
+  // 3. JSON parses successfully — essentially zero false positives when the
+  //    content starts with { or [ (scalars like `123` stay ambiguous).
+  if (await isJsonContent(input)) {
+    if (extFormat && extFormat !== 'json') {
+      warnings.push(
+        `File extension suggests ${extFormat} but content parses as JSON; using json.`,
+      )
+    }
+    return { detection: { format: 'json', confidence: 'magic', mime: 'application/json' }, warnings }
+  }
+
+  // 4. Extension mapping (csv/txt cannot be told apart from plain text by content).
   if (extFormat) {
     return { detection: { format: extFormat, confidence: 'extension', mime: undefined }, warnings }
+  }
+
+  // 5. YAML document marker, for extension-less files only — a leading `---`
+  //    line is a strong YAML signal but not proof (markdown frontmatter, rules).
+  if (await startsWithYamlMarker(input)) {
+    return { detection: { format: 'yaml', confidence: 'guess', mime: 'application/yaml' }, warnings }
   }
 
   throw new DetectError(
@@ -77,15 +97,37 @@ export async function detectFile(input: string): Promise<DetectOutcome> {
   )
 }
 
-async function looksLikeSvg(input: string): Promise<boolean> {
-  const head = await fs.open(input, 'r').then(async (handle) => {
+async function readHead(input: string, bytes: number): Promise<string> {
+  return fs.open(input, 'r').then(async (handle) => {
     try {
-      const buffer = Buffer.alloc(TEXT_SNIFF_BYTES)
-      const { bytesRead } = await handle.read(buffer, 0, TEXT_SNIFF_BYTES, 0)
-      return buffer.subarray(0, bytesRead).toString('utf8')
+      const buffer = Buffer.alloc(bytes)
+      const { bytesRead } = await handle.read(buffer, 0, bytes, 0)
+      return buffer.subarray(0, bytesRead).toString('utf8').replace(/^\uFEFF/, '')
     } finally {
       await handle.close()
     }
   }).catch(() => '')
-  return head.includes('<svg')
+}
+
+async function looksLikeSvg(input: string): Promise<boolean> {
+  return (await readHead(input, TEXT_SNIFF_BYTES)).includes('<svg')
+}
+
+/** True when the whole file JSON-parses and starts with an unambiguous container. */
+async function isJsonContent(input: string): Promise<boolean> {
+  const stat = await fs.stat(input).catch(() => null)
+  if (!stat || stat.size === 0 || stat.size > JSON_SNIFF_LIMIT) return false
+  const text = await fs.readFile(input, 'utf8').catch(() => '')
+  const trimmed = text.trim()
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return false
+  try {
+    JSON.parse(trimmed)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function startsWithYamlMarker(input: string): Promise<boolean> {
+  return /^---\s*(\r?\n|$)/.test((await readHead(input, 64)).trimStart())
 }

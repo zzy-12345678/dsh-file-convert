@@ -15,7 +15,11 @@ export function createConvertFileTool(router: ConversionRouter, config: Config, 
         required: true,
         description: 'Target format: png, jpg, webp, svg, pdf, json, yaml, csv or txt. Aliases like jpeg/yml are accepted.',
       },
-      output: { type: 'string', description: 'Optional absolute output path. Defaults to next to the input file.' },
+      output: {
+        type: 'string',
+        description:
+          'Optional absolute output path. Defaults to next to the input file. If the plugin config sets outputRoots, the path must be inside one of them.',
+      },
       overwrite: { type: 'boolean', description: 'Replace the output file if it exists. Default false.' },
       quality: { type: 'integer', description: 'JPEG/WebP quality 1-100 (default from plugin config, 85).' },
       dpi: { type: 'integer', description: 'Rasterization DPI for PDF/SVG inputs (default from plugin config, 150).' },

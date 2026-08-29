@@ -92,6 +92,8 @@ dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 | `quality` | `85` | JPEG/WebP 默认质量（1–100） |
 | `dpi` | `150` | PDF 光栅化默认 DPI |
 | `timeoutMs` | `120000` | 单次转换的协作式超时（毫秒） |
+| `batchMaxFiles` | `500` | 每次 `batch_convert` 最多检查的文件数；超出时会在结果里明确报告跳过了多少，而不是静默截断 |
+| `outputRoots` | `[]` | 非空时，显式指定的 `output` 路径必须落在这些目录之内（共享部署建议开启；默认写到输入文件旁的输出不受限） |
 
 ## 架构
 
@@ -113,7 +115,7 @@ dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 ```
 
 - **声明式转换矩阵**：每条转换是 converter 上的一行数据（`{ from, to }`），Router 路由、`list_conversions`、依赖检查全部由此推导。
-- **格式识别**：magic bytes 优先（file-type + SVG 嗅探），扩展名兜底；两者冲突以内容为准并给出 warning。
+- **格式识别**：内容优先——二进制 magic（file-type）、SVG 嗅探、JSON 解析（无扩展名文件还会尝试 YAML 文档标记猜测）——扩展名兜底；两者冲突以内容为准并给出 warning。
 - **核心与 DSH 解耦**：`src/core` 不依赖 Cordis/DSH，可直接单测、包 CLI、将来包 MCP server。DSH developer preview 的 API 若有破坏性变更，只需改胶水层。
 - **依赖管理**：外部二进制（FFmpeg/LibreOffice/Poppler）只做**检测，绝不自动安装**——`list_conversions` 报告缺失并给出各平台安装提示。接口已就位（`BinaryDependency`）。
 

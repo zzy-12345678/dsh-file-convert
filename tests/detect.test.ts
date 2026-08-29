@@ -39,9 +39,9 @@ describe('detectFile', () => {
 
   it('falls back to the extension for text formats', async () => {
     const dir = await tmpDir()
-    const json = await writeFile(dir, 'data.json', '{"a":1}')
-    const outcome = await detectFile(json)
-    expect(outcome.detection.format).toBe('json')
+    const csv = await writeFile(dir, 'data.csv', 'name,age\nAlice,30\n')
+    const outcome = await detectFile(csv)
+    expect(outcome.detection.format).toBe('csv')
     expect(outcome.detection.confidence).toBe('extension')
   })
 
@@ -50,6 +50,37 @@ describe('detectFile', () => {
     const svg = await writeFile(dir, 'vector.txt', '<svg xmlns="http://www.w3.org/2000/svg"></svg>')
     const outcome = await detectFile(svg)
     expect(outcome.detection.format).toBe('svg')
+  })
+
+  it('detects JSON content despite a wrong extension', async () => {
+    const dir = await tmpDir()
+    const file = await writeFile(dir, 'data.txt', '{"a": 1, "b": [1, 2]}')
+    const outcome = await detectFile(file)
+    expect(outcome.detection.format).toBe('json')
+    expect(outcome.detection.confidence).toBe('magic')
+    expect(outcome.warnings.join(' ')).toMatch(/extension suggests txt/i)
+  })
+
+  it('detects extension-less JSON', async () => {
+    const dir = await tmpDir()
+    const file = await writeFile(dir, 'README', '{"a": [1, 2]}')
+    const outcome = await detectFile(file)
+    expect(outcome.detection.format).toBe('json')
+    expect(outcome.detection.confidence).toBe('magic')
+  })
+
+  it('does not mistake scalar text for JSON', async () => {
+    const dir = await tmpDir()
+    const file = await writeFile(dir, 'numbers', '123\n456\n')
+    await expect(detectFile(file)).rejects.toBeInstanceOf(DetectError)
+  })
+
+  it('guesses YAML from the document marker on extension-less files', async () => {
+    const dir = await tmpDir()
+    const file = await writeFile(dir, 'config', '---\nkey: value\n')
+    const outcome = await detectFile(file)
+    expect(outcome.detection.format).toBe('yaml')
+    expect(outcome.detection.confidence).toBe('guess')
   })
 
   it('fails with unknown_format for unrecognized files', async () => {

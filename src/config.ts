@@ -7,10 +7,20 @@ export interface Config {
   dpi: number
   /** Cooperative deadline for one conversion, in milliseconds. */
   timeoutMs: number
+  /** Max files examined per batch_convert run before it stops and reports. */
+  batchMaxFiles: number
+  /**
+   * When non-empty, explicit output paths must resolve inside one of these
+   * directories. Empty (default) = unrestricted - fine on a personal machine;
+   * set it when the harness is shared or exposed.
+   */
+  outputRoots: string[]
 }
 
 export const Config: Schema<Config> = Schema.object({
   quality: Schema.number().min(1).max(100).default(85).description('Default JPEG/WebP quality (1-100).'),
   dpi: Schema.number().min(72).max(600).default(150).description('Default rasterization DPI for PDF/SVG inputs.'),
   timeoutMs: Schema.number().min(1000).default(120_000).description('Cooperative timeout for one conversion (ms).'),
+  batchMaxFiles: Schema.number().min(1).default(500).description('Max files examined per batch_convert run; extra files are reported, not silently skipped.'),
+  outputRoots: Schema.array(Schema.string()).default([]).description('Restrict explicit output paths to these directories. Empty = unrestricted.'),
 })

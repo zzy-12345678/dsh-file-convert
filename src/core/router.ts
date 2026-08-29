@@ -26,6 +26,13 @@ export interface RouterDefaults {
   dpi: number
   /** Cooperative deadline for one conversion, in milliseconds. */
   timeoutMs: number
+  /**
+   * When non-empty, EXPLICIT output paths must resolve inside one of these
+   * directories (case-insensitive on Windows). Default output (next to the
+   * input) is exempt. Empty = unrestricted, which is fine for a personal
+   * single-user harness; set it for shared deployments.
+   */
+  outputRoots?: string[]
 }
 
 export interface ConvertFileRequest {
@@ -101,7 +108,7 @@ export class ConversionRouter {
     }
     statuses.sort(
       (a, b) =>
-        categoryRank(a.from) - categoryRank(b.from) ||
+        (CATEGORY_RANK.get(a.from) ?? 0) - (CATEGORY_RANK.get(b.from) ?? 0) ||
         a.from.localeCompare(b.from) ||
         a.to.localeCompare(b.to),
     )
@@ -154,6 +161,22 @@ export class ConversionRouter {
       }
 
       const output = req.output ?? defaultOutputPath(req.input, to)
+      if (isSameFile(output, req.input)) {
+        return {
+          ok: false, input: req.input, from, to,
+          error: convertError('invalid_input', 'Output path equals the input path; converting would destroy the source.', {
+            hint: 'Choose a different output name or omit output to write next to the input with the new extension.',
+          }),
+        }
+      }
+      if (req.output !== undefined && !isInsideRoots(output, this.defaults.outputRoots)) {
+        return {
+          ok: false, input: req.input, from, to,
+          error: convertError('invalid_input', `Output path ${output} is outside every configured outputRoot.`, {
+            hint: `Allowed roots: ${this.defaults.outputRoots?.join(', ')}. Omit output to write next to the input.`,
+          }),
+        }
+      }
       await fs.mkdir(path.dirname(output), { recursive: true })
       const overwrite = req.overwrite ?? false
       if (!overwrite && (await exists(output))) {
@@ -204,9 +227,30 @@ export class ConversionRouter {
   }
 }
 
-function categoryRank(format: FormatId): number {
-  const order: FormatId[] = [...FORMAT_IDS].sort((a, b) => formatCategory(a).localeCompare(formatCategory(b)))
-  return order.indexOf(format)
+/** Category ordering is static; compute the rank once instead of per sort call. */
+const CATEGORY_RANK = new Map<FormatId, number>(
+  [...FORMAT_IDS]
+    .sort((a, b) => formatCategory(a).localeCompare(formatCategory(b)))
+    .map((format, index) => [format, index]),
+)
+
+function isSameFile(a: string, b: string): boolean {
+  const ra = path.resolve(a)
+  const rb = path.resolve(b)
+  if (ra === rb) return true
+  // Windows paths are case-insensitive; also fold / vs \.
+  return process.platform === 'win32' && ra.replace(/\\/g, '/').toLowerCase() === rb.replace(/\\/g, '/').toLowerCase()
+}
+
+function isInsideRoots(output: string, roots: string[] | undefined): boolean {
+  if (!roots || roots.length === 0) return true
+  const resolved = path.resolve(output)
+  const candidates = process.platform === 'win32' ? resolved.replace(/\\/g, '/').toLowerCase() : resolved
+  return roots.some((root) => {
+    const rr = path.resolve(root)
+    const prefix = process.platform === 'win32' ? rr.replace(/\\/g, '/').toLowerCase() : rr
+    return candidates === prefix || candidates.startsWith(prefix.endsWith('/') ? prefix : prefix + '/')
+  })
 }
 
 async function missingDeps(converter: Converter) {

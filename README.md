@@ -109,6 +109,8 @@ What works on *this* machine, right now — unavailable rows name the missing to
 | `quality` | `85` | Default JPEG/WebP quality (1–100) |
 | `dpi` | `150` | Default rasterization DPI for PDF inputs |
 | `timeoutMs` | `120000` | Cooperative timeout for one conversion |
+| `batchMaxFiles` | `500` | Max files examined per `batch_convert` run; beyond it the summary reports what was skipped instead of silently capping |
+| `outputRoots` | `[]` | When non-empty, explicit `output` paths must resolve inside one of these directories (recommended for shared deployments; the default next-to-input output is always exempt) |
 
 ## Architecture
 
@@ -130,7 +132,7 @@ What works on *this* machine, right now — unavailable rows name the missing to
 ```
 
 - **Declarative matrix**: every conversion is a data row (`{ from, to }`) on its converter. Routing, `list_conversions` and dependency checks are all derived from it.
-- **Detection**: magic bytes first (file-type + SVG sniffing), extension fallback; conflicts resolve in favor of the content with a warning.
+- **Detection**: content first - binary magic (file-type), SVG sniffing, and JSON parsing (plus a YAML document-marker guess for extension-less files) - with the extension as fallback. Conflicts resolve in favor of the content, with a warning.
 - **Core is DSH-agnostic**: `src/core` never imports Cordis/DSH, so the engine can be unit-tested, wrapped in a CLI, or served over MCP later. If the DSH developer-preview API shifts, only the glue layer changes.
 - **Dependencies**: external binaries (FFmpeg, LibreOffice, Poppler) are *detected, never auto-installed* — `list_conversions` reports them and prints per-platform install hints. The interface is already in place (`BinaryDependency`).
 

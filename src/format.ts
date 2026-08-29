@@ -61,6 +61,7 @@ export function formatBatchSummary(summary: BatchSummary): string {
     `Converted: ${summary.converted.length}, skipped: ${summary.skipped.length}, failed: ${summary.failed.length}`,
   ]
   if (summary.outputDir) lines.push(`Output dir: ${summary.outputDir}`)
+  for (const note of summary.notes) lines.push(`Note: ${note}`)
   if (summary.converted.length > 0) {
     lines.push(`Recently converted:`)
     for (const item of summary.converted.slice(0, MAX_LISTED)) lines.push(`  + ${item}`)
@@ -86,4 +87,6 @@ export interface BatchSummary {
   converted: string[]
   skipped: string[]
   failed: string[]
+  /** Anything the user must know beyond the counts (e.g. truncation at the limit). */
+  notes: string[]
 }

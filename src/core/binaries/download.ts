@@ -22,6 +22,7 @@ const NPM_SOURCES: Record<string, { pkg: string; version: string }> = {
   'ffmpeg:darwin-x64': { pkg: '@ffmpeg-installer/darwin-x64', version: '4.1.0' },
   'ffmpeg:linux-x64': { pkg: '@ffmpeg-installer/linux-x64', version: '4.1.0' },
   'ffprobe:win32-x64': { pkg: '@ffprobe-installer/win32-x64', version: '5.1.0' },
+  'ffprobe:darwin-arm64': { pkg: '@ffprobe-installer/darwin-arm64', version: '5.0.1' },
   'ffprobe:darwin-x64': { pkg: '@ffprobe-installer/darwin-x64', version: '5.1.0' },
   'ffprobe:linux-x64': { pkg: '@ffprobe-installer/linux-x64', version: '5.2.0' },
 }

@@ -14,7 +14,7 @@ export function createInstallMediaTool(config: Config, logger: Logger) {
   return defineTool({
     name: 'install_media_dependencies',
     description:
-      'Download pinned static ffmpeg and ffprobe builds (about 139 MB on Windows, from the npmmirror registry by default with sha512 integrity verification) into the plugin cache (~/.dsh-file-convert/bin), so mp4/mov/wav conversions and video optimize_file work without a system install. Ask the user for consent before calling. Skips what is already available; a system ffmpeg keeps priority over the cache.',
+      'Download pinned static ffmpeg and ffprobe builds (roughly 80-140 MB depending on platform and pinned version; the exact size is reported after download, from the npmmirror registry by default with sha512 integrity verification) into the plugin cache (~/.dsh-file-convert/bin), so mp4/mov/wav conversions and video optimize_file work without a system install. Ask the user for consent before calling. Skips what is already available; a system ffmpeg keeps priority over the cache.',
     parameters: {
       force: {
         type: 'boolean',

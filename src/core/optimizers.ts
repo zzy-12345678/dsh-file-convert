@@ -139,17 +139,29 @@ async function optimizeVideo(
 
   const passlog = path.join(os.tmpdir(), `dsh-file-convert-pass-${Date.now()}`)
   try {
-    await execTool(ffmpeg, [
-      ...FFMPEG_GLOBAL, '-i', input,
-      '-c:v', 'libx264', '-b:v', `${videoKbps}k`, '-pass', '1', '-passlogfile', passlog,
-      '-an', '-f', 'null', '-',
-    ], { timeoutMs: ctx.timeoutMs, signal: ctx.signal })
-    await execTool(ffmpeg, [
-      ...FFMPEG_GLOBAL, '-i', input,
-      '-c:v', 'libx264', '-b:v', `${videoKbps}k`, '-pass', '2', '-passlogfile', passlog,
-      '-c:a', 'aac', '-b:a', `${audioKbps}k`, '-movflags', '+faststart',
-      output,
-    ], { timeoutMs: ctx.timeoutMs, signal: ctx.signal })
+    try {
+      await execTool(ffmpeg, [
+        ...FFMPEG_GLOBAL, '-i', input,
+        '-c:v', 'libx264', '-b:v', `${videoKbps}k`, '-pass', '1', '-passlogfile', passlog,
+        '-an', '-f', 'null', '-',
+      ], { timeoutMs: ctx.timeoutMs, signal: ctx.signal })
+      await execTool(ffmpeg, [
+        ...FFMPEG_GLOBAL, '-i', input,
+        '-c:v', 'libx264', '-b:v', `${videoKbps}k`, '-pass', '2', '-passlogfile', passlog,
+        '-c:a', 'aac', '-b:a', `${audioKbps}k`, '-movflags', '+faststart',
+        output,
+      ], { timeoutMs: ctx.timeoutMs, signal: ctx.signal })
+    } catch (err) {
+      // Sources with broken DTS/timestamps (screen recordings, stitched clips)
+      // can fail pass 2; point users at the normalize-then-optimize path.
+      if (err instanceof ExecError && err.code === 'failed') {
+        throw new OptimizeError(convertError('conversion_failed', 'Two-pass encoding failed.', {
+          detail: err.stderr,
+          hint: 'If the source has unusual timestamps, run convert_file to MP4 first and optimize that result.',
+        }))
+      }
+      throw err
+    }
   } finally {
     for (const suffix of ['-0.log', '-0.log.mbtree']) {
       await fs.rm(passlog + suffix, { force: true }).catch(() => undefined)

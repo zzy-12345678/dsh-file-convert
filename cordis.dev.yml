@@ -1,0 +1,7 @@
+# Dev overlay: load the plugin straight from this checkout without installing
+# it into a profile. Usage:
+#   dsh --profile default --patch D:/DSH_project/cordis.dev.yml
+# Note: Windows paths must be file:// URLs for the ESM plugin loader.
+- insert:
+  - id: dsh-file-convert
+    name: 'file:///D:/DSH_project/lib/index.js'

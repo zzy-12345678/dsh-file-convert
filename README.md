@@ -41,7 +41,7 @@ dsh plugin --profile default add dsh-file-convert
 From a local checkout (e.g. while hacking on it):
 
 ```sh
-git clone https://github.com/YOU/dsh-file-convert
+git clone https://github.com/zzy-12345678/dsh-file-convert
 cd dsh-file-convert && npm install && npm run build
 dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 ```

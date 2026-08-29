@@ -5,6 +5,14 @@
   "license": "MIT",
   "type": "module",
   "main": "./lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zzy-12345678/dsh-file-convert.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zzy-12345678/dsh-file-convert/issues"
+  },
+  "homepage": "https://github.com/zzy-12345678/dsh-file-convert#readme",
   "engines": {
     "node": ">=20"
   },

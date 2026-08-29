@@ -31,7 +31,7 @@ Agents constantly need file conversions: "turn this PDF into images", "give me t
 | WAV | MP3 |
 | CSV | JSON, YAML |
 
-22 conversions. Images, PDF and data work out of the box via `npm install`. The four media rows unlock once [FFmpeg](https://ffmpeg.org) is on PATH (or via the `ffmpegPath` config) — until then `list_conversions` reports them as unavailable and names the missing tool. Office (DOCX/PPTX/XLSX via LibreOffice) is planned for V0.3.
+22 conversions. Images, PDF and data work out of the box via `npm install`. The four media rows unlock once FFmpeg is available: install it system-wide (on PATH or via the `ffmpegPath` config), **or just ask the agent to run `install_media_dependencies`** — it downloads pinned builds into the plugin cache with sha512 integrity verification (about 139 MB on Windows, one time), from the `npmmirror.com` registry by default with npmjs.org as automatic fallback. Until then `list_conversions` reports the media rows as unavailable and names the missing tool. Office (DOCX/PPTX/XLSX via LibreOffice) is planned for V0.3.
 
 ## Install
 
@@ -51,7 +51,7 @@ dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 
 Then restart DSH (`dsh web` or your usual entry point). All four tools appear automatically.
 
-## The five tools
+## The six tools
 
 ### `convert_file`
 
@@ -119,6 +119,10 @@ Applied: two-pass x264: video 512k + audio 128k over 185.0s
 - JPG/WEBP: binary-searches the highest encoder quality that fits; PNG uses palette reduction. No external tools needed.
 - Targets below what the codec can physically reach are refused with the achievable minimum.
 - GIF and PDF optimization are not supported yet.
+
+### `install_media_dependencies`
+
+One-call media setup: downloads pinned `@ffmpeg-installer` / `@ffprobe-installer` builds into the plugin cache (`~/.dsh-file-convert/bin`), verifies the registry's sha512 integrity, and proves the binaries run before reporting success. Downloads default to the `npmmirror.com` mirror (npmjs.org fallback; pin another source with `registry`). System installs keep priority over the cache. Ask the user for consent first — it is a sizable download.
 
 ### `list_conversions`
 

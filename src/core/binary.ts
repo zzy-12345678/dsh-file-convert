@@ -1,27 +1,17 @@
+import { resolveBinaryCached } from './binaries/cache.js'
 import type { BinaryDependency, Logger } from './types.js'
 
 /**
- * V0.1 uses no external binaries, but the resolution hook exists now so
- * V0.2/V0.3 backends (FFmpeg, LibreOffice, Poppler) only fill in data.
- *
- * Resolution order: plugin config override → PATH lookup. No auto-install,
- * ever — the caller surfaces installHint instead.
+ * Resolve an external binary: plugin config override → system PATH → plugin
+ * cache (populated by install_media_dependencies). No auto-install happens
+ * here — downloading is an explicit, user-approved tool call.
  */
 export async function resolveBinary(
   dep: BinaryDependency,
   overrides: Record<string, string | undefined>,
   logger: Logger,
 ): Promise<string | null> {
-  const override = dep.configKey ? overrides[dep.configKey] : undefined
-  if (override) {
-    logger.debug(`binary ${dep.name}: using configured path ${override}`)
-    return override
-  }
-  for (const command of dep.commands) {
-    const found = await which(command)
-    if (found) return found
-  }
-  return null
+  return resolveBinaryCached(dep, overrides, which, logger)
 }
 
 const whichCache = new Map<string, string | null>()

@@ -54,27 +54,27 @@ if (!txt.includes('dsh-file-convert smoke')) throw new Error('txt output unexpec
 const statuses = await router.listConversions()
 if (statuses.length !== 22) throw new Error(`expected 22 capabilities, got ${statuses.length}`)
 
-// media: only exercised when ffmpeg is on PATH; otherwise the matrix must report it missing
-const hasFfmpeg = await new Promise((resolve) => {
-  const probe = execFile(process.platform === 'win32' ? 'where' : 'which', ['ffmpeg'], (err) => resolve(!err))
-  probe.on('error', () => resolve(false))
-})
-let mediaNote = 'ffmpeg not on PATH: media rows correctly reported unavailable'
-if (hasFfmpeg) {
+// media: exercised whenever ffmpeg resolves (system PATH or plugin cache);
+// otherwise the matrix must report the media rows as unavailable.
+const { resolveBinary, FFMPEG } = await import('../lib/core/index.js')
+const ffmpegPath = await resolveBinary(FFMPEG, {}, NULL_LOGGER)
+let mediaNote
+if (ffmpegPath) {
   const wavFile = path.join(dir, 'smoke.wav')
   const run = (args) =>
     new Promise((resolve, reject) => {
-      execFile('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args], (err) => (err ? reject(err) : resolve()))
+      execFile(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-y', ...args], (err) => (err ? reject(err) : resolve()))
     })
   await run(['-f', 'lavfi', '-i', 'sine=frequency=440:duration=0.5', '-c:a', 'pcm_s16le', '-vn', wavFile])
   const mp3File = path.join(dir, 'smoke.mp3')
   await expectOk({ input: wavFile, outputFormat: 'mp3', output: mp3File })
   const unavailable = statuses.filter((s) => !s.available)
-  if (unavailable.length !== 0) throw new Error(`expected no unavailable rows with ffmpeg installed, got: ${unavailable.map((u) => u.from + '->' + u.to)}`)
-  mediaNote = 'wav -> mp3 verified with local ffmpeg'
+  if (unavailable.length !== 0) throw new Error(`expected no unavailable rows with ffmpeg resolvable, got: ${unavailable.map((u) => u.from + '->' + u.to)}`)
+  mediaNote = `wav -> mp3 verified via ${ffmpegPath}`
 } else {
   const mediaRows = statuses.filter((s) => ['mp4', 'mov', 'wav'].includes(s.from))
-  if (!mediaRows.every((s) => !s.available)) throw new Error('media rows should be unavailable without ffmpeg')
+  if (!mediaRows.every((s) => !s.available)) throw new Error('media rows should be unavailable without any ffmpeg')
+  mediaNote = 'no ffmpeg anywhere: media rows correctly reported unavailable'
 }
 
 console.log(`smoke OK: capability matrix (${statuses.length}), ${mediaNote} - in ${dir}`)

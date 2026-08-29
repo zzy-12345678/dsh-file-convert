@@ -31,7 +31,7 @@ Agent 日常需要各种格式转换："把这个 PDF 转成图片"、"把这个
 | WAV | MP3 |
 | CSV | JSON、YAML |
 
-共 22 种转换。图片/PDF/数据 `npm install` 后开箱即用；四条音视频转换在 [FFmpeg](https://ffmpeg.org) 进入 PATH（或配置 `ffmpegPath`）后自动解锁——没装时 `list_conversions` 会标记为 unavailable 并指出缺什么。Office（DOCX/PPTX/XLSX→PDF，走 LibreOffice）计划在 V0.3。
+共 22 种转换。图片/PDF/数据 `npm install` 后开箱即用；四条音视频转换在 FFmpeg 可用后自动解锁：装系统级（进 PATH 或配置 `ffmpegPath`），**或者直接让 Agent 跑 `install_media_dependencies`**——默认从 `npmmirror.com` 镜像下载固定版本的二进制（Windows 上约 139 MB，一次性）到插件缓存，带 sha512 完整性校验，npmjs.org 作为自动回退。没装时 `list_conversions` 会标记为 unavailable 并指出缺什么。Office（DOCX/PPTX/XLSX→PDF，走 LibreOffice）计划在 V0.3。
 
 ## 安装
 
@@ -51,7 +51,7 @@ dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 
 重启 DSH（`dsh web` 或你的常规入口）后，四个 tool 自动出现。
 
-## 五个 Tool
+## 六个 Tool
 
 ### `convert_file` —— 单文件转换
 
@@ -94,6 +94,10 @@ dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 - JPG/WEBP：二分搜索能塞进目标体积的最高编码质量；PNG 走调色板压缩。图片不需要任何外部工具。
 - 目标体积低于编码物理下限时直接拒绝，并给出可达的最低体积。
 - GIF/PDF 压缩暂不支持。
+
+### `install_media_dependencies` —— 一键补齐媒体依赖
+
+默认从 `npmmirror.com` 镜像下载固定版本的 `@ffmpeg-installer` / `@ffprobe-installer` 二进制到插件缓存（`~/.dsh-file-convert/bin`），校验 sha512 完整性，并真实执行一次二进制确认可用后才报告成功（npmjs.org 自动回退，`registry` 参数可指定其它源）。系统安装的 ffmpeg 优先于缓存。体积可观，调用前请先征得用户同意。
 
 ### `list_conversions` —— 当前机器的能力清单
 

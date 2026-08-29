@@ -59,7 +59,7 @@ export function createBatchConvertTool(router: ConversionRouter, config: Config,
       const files = entries.filter((e) => e.isFile()).map((e) => path.join(inputDir, e.name)).sort()
       const maxFiles = config.batchMaxFiles
 
-      const candidates: string[] = []
+      const candidates: Array<{ file: string; from: FormatId }> = []
       let examined = 0
       let truncated = false
       for (const file of files) {
@@ -70,12 +70,14 @@ export function createBatchConvertTool(router: ConversionRouter, config: Config,
         examined++
         if (fromFilter) {
           const ext = path.extname(file).replace(/^\./, '')
-          if (formatFromExtension(ext) === fromFilter) candidates.push(file)
+          if (formatFromExtension(ext) === fromFilter) candidates.push({ file, from: fromFilter })
           continue
         }
         try {
           const { detection } = await detectFile(file)
-          if (detection.format !== to && router.route(detection.format, to)) candidates.push(file)
+          if (detection.format !== to && router.route(detection.format, to)) {
+            candidates.push({ file, from: detection.format })
+          }
         } catch {
           /* unknown formats are simply not candidates */
         }
@@ -107,7 +109,17 @@ export function createBatchConvertTool(router: ConversionRouter, config: Config,
         notes,
       }
 
-      // The pool adapts to the strictest involved converter (V0.1: all support parallel).
+      // The pool adapts to the strictest converter involved (ffmpeg = 2, sharp = 4).
+      const involvedConcurrency = new Set<number>()
+      for (const candidate of candidates) {
+        const converter = router.route(candidate.from, to)
+        if (converter) involvedConcurrency.add(converter.concurrency)
+      }
+      const poolSize = Math.max(
+        1,
+        Math.min(MAX_CONCURRENCY, os.cpus().length, ...(involvedConcurrency.size ? involvedConcurrency : [MAX_CONCURRENCY])),
+      )
+
       let next = 0
       let aborted = false
       const worker = async () => {
@@ -116,19 +128,19 @@ export function createBatchConvertTool(router: ConversionRouter, config: Config,
             aborted = true
             return
           }
-          const file = candidates[next++]
+          const candidate = candidates[next++]
           const result = await router.convertFile(
             {
-              input: file,
+              input: candidate.file,
               outputFormat: to,
-              output: batchOutputPath(outputDir, file, to),
+              output: batchOutputPath(outputDir, candidate.file, to),
               overwrite: args.overwrite,
               quality: args.quality,
               dpi: args.dpi,
             },
             { logger, signal: exec.signal },
           )
-          const name = path.basename(file)
+          const name = path.basename(candidate.file)
           if (result.ok) {
             summary.converted.push(`${name} -> ${path.relative(outputDir, result.output) || path.basename(result.output)}`)
           } else if (result.error.code === 'output_exists') {
@@ -138,8 +150,7 @@ export function createBatchConvertTool(router: ConversionRouter, config: Config,
           }
         }
       }
-      const concurrency = Math.max(1, Math.min(MAX_CONCURRENCY, os.cpus().length))
-      await Promise.all(Array.from({ length: concurrency }, worker))
+      await Promise.all(Array.from({ length: poolSize }, worker))
 
       if (aborted) {
         summary.failed.push(`Cancelled with ${candidates.length - next} files not processed.`)

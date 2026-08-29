@@ -10,7 +10,14 @@ const MIME_TO_FORMAT: Partial<Record<string, FormatId>> = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
   'image/webp': 'webp',
+  'image/gif': 'gif',
   'application/pdf': 'pdf',
+  'video/mp4': 'mp4',
+  'video/quicktime': 'mov',
+  'audio/mpeg': 'mp3',
+  'audio/wav': 'wav',
+  'audio/vnd.wave': 'wav',
+  'audio/x-wav': 'wav',
 }
 
 const TEXT_SNIFF_BYTES = 512

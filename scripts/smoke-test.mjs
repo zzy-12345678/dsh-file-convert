@@ -5,6 +5,7 @@
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { execFile } from 'node:child_process'
 import sharp from 'sharp'
 import { createRouter } from '../lib/core/index.js'
 
@@ -51,6 +52,29 @@ const txt = await fs.readFile(txtFile, 'utf8')
 if (!txt.includes('dsh-file-convert smoke')) throw new Error('txt output unexpected')
 
 const statuses = await router.listConversions()
-if (statuses.length !== 18) throw new Error(`expected 18 capabilities, got ${statuses.length}`)
+if (statuses.length !== 22) throw new Error(`expected 22 capabilities, got ${statuses.length}`)
 
-console.log(`smoke OK: 6 conversions + capability matrix (${statuses.length}) verified in ${dir}`)
+// media: only exercised when ffmpeg is on PATH; otherwise the matrix must report it missing
+const hasFfmpeg = await new Promise((resolve) => {
+  const probe = execFile(process.platform === 'win32' ? 'where' : 'which', ['ffmpeg'], (err) => resolve(!err))
+  probe.on('error', () => resolve(false))
+})
+let mediaNote = 'ffmpeg not on PATH: media rows correctly reported unavailable'
+if (hasFfmpeg) {
+  const wavFile = path.join(dir, 'smoke.wav')
+  const run = (args) =>
+    new Promise((resolve, reject) => {
+      execFile('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args], (err) => (err ? reject(err) : resolve()))
+    })
+  await run(['-f', 'lavfi', '-i', 'sine=frequency=440:duration=0.5', '-c:a', 'pcm_s16le', '-vn', wavFile])
+  const mp3File = path.join(dir, 'smoke.mp3')
+  await expectOk({ input: wavFile, outputFormat: 'mp3', output: mp3File })
+  const unavailable = statuses.filter((s) => !s.available)
+  if (unavailable.length !== 0) throw new Error(`expected no unavailable rows with ffmpeg installed, got: ${unavailable.map((u) => u.from + '->' + u.to)}`)
+  mediaNote = 'wav -> mp3 verified with local ffmpeg'
+} else {
+  const mediaRows = statuses.filter((s) => ['mp4', 'mov', 'wav'].includes(s.from))
+  if (!mediaRows.every((s) => !s.available)) throw new Error('media rows should be unavailable without ffmpeg')
+}
+
+console.log(`smoke OK: capability matrix (${statuses.length}), ${mediaNote} - in ${dir}`)

@@ -15,7 +15,7 @@ Agents constantly need file conversions: "turn this PDF into images", "give me t
 - ✅ **Natural language friendly** — the agent calls the tools, you just ask
 - ✅ **Batch conversions** with a compact summary
 - ✅ **Honest failures** — missing dependency, unsupported pair, existing output: every error says exactly why
-- ✅ **Zero external binaries in V0.1** — everything ships as prebuilt npm packages
+- ✅ **Images, PDF and data need zero external binaries** — prebuilt npm packages only. Media needs one tool (ffmpeg), clearly reported when missing
 
 ## Supported conversions (V0.1)
 
@@ -26,9 +26,12 @@ Agents constantly need file conversions: "turn this PDF into images", "give me t
 | PDF | PNG, JPG, TXT |
 | JSON | YAML, CSV |
 | YAML | JSON, CSV |
+| MP4 | GIF, MP3 |
+| MOV | MP4 |
+| WAV | MP3 |
 | CSV | JSON, YAML |
 
-18 conversions, all available out of the box via `npm install` — no Poppler, no LibreOffice, no FFmpeg required yet. Office (DOCX/PPTX/XLSX via LibreOffice) and media (MP4/GIF/MP3 via FFmpeg) are planned for V0.2/V0.3, each unlocking behind a clearly reported dependency.
+22 conversions. Images, PDF and data work out of the box via `npm install`. The four media rows unlock once [FFmpeg](https://ffmpeg.org) is on PATH (or via the `ffmpegPath` config) — until then `list_conversions` reports them as unavailable and names the missing tool. Office (DOCX/PPTX/XLSX via LibreOffice) is planned for V0.3.
 
 ## Install
 
@@ -48,7 +51,7 @@ dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 
 Then restart DSH (`dsh web` or your usual entry point). All four tools appear automatically.
 
-## The four tools
+## The five tools
 
 ### `convert_file`
 
@@ -98,6 +101,25 @@ Facts before action, detected from file content — not just the extension:
 { "kind": "pdf", "pages": 24, "encrypted": false, "likelyScanned": true, "bytes": 13000000 }
 ```
 
+### `optimize_file`
+
+Shrink a file toward a target size instead of converting it:
+
+```json
+{ "input": "video.mp4", "target_size_mb": 20 }
+```
+
+```
+Optimized: video.mp4 (mp4) -> video-min.mp4
+18.3 MB -> 19.7 MB (target 20 MB) in 41.2s
+Applied: two-pass x264: video 512k + audio 128k over 185.0s
+```
+
+- MP4/MOV: two-pass x264, the video bitrate is computed from the target (audio 128k, dropping to 64k for tight targets); output is always MP4. Requires ffmpeg + ffprobe.
+- JPG/WEBP: binary-searches the highest encoder quality that fits; PNG uses palette reduction. No external tools needed.
+- Targets below what the codec can physically reach are refused with the achievable minimum.
+- GIF and PDF optimization are not supported yet.
+
 ### `list_conversions`
 
 What works on *this* machine, right now — unavailable rows name the missing tool and how to install it. V0.1 needs nothing external, so everything is available.
@@ -111,6 +133,7 @@ What works on *this* machine, right now — unavailable rows name the missing to
 | `timeoutMs` | `120000` | Cooperative timeout for one conversion |
 | `batchMaxFiles` | `500` | Max files examined per `batch_convert` run; beyond it the summary reports what was skipped instead of silently capping |
 | `outputRoots` | `[]` | When non-empty, explicit `output` paths must resolve inside one of these directories (recommended for shared deployments; the default next-to-input output is always exempt) |
+| `ffmpegPath` / `ffprobePath` | - | Explicit binary paths when ffmpeg is not on PATH (common on Windows) |
 
 ## Architecture
 
@@ -129,6 +152,8 @@ What works on *this* machine, right now — unavailable rows name the missing to
                  ImageConverter     PdfConverter      DataConverter
                     sharp          pdfjs-dist         js-yaml
                  (libvips npm)   @napi-rs/canvas    csv-parse / stringify
+                                                     MediaConverter
+                                                        ffmpeg (optional, detected)
 ```
 
 - **Declarative matrix**: every conversion is a data row (`{ from, to }`) on its converter. Routing, `list_conversions` and dependency checks are all derived from it.
@@ -149,9 +174,9 @@ Add a conversion = add one capability row + implement it in a converter. Add a b
 
 ## Roadmap
 
-- **V0.2 — Media (FFmpeg)**: MP4→GIF, MP4→MP3, WAV→MP3, MOV→MP4; `optimize_file` with target-size encoding.
-- **V0.3 — Office (LibreOffice)**: DOCX/PPTX/XLSX→PDF; PDF→DOCX (experimental, OCR-ready parameter surface already specced).
-- Later: page-range selection, conversion chains (PPTX→PDF→PNG), more image options (resize, rotation).
+- ~~V0.2 — Media (FFmpeg)~~ **shipped**: MP4→GIF/MP3, WAV→MP3, MOV→MP4, plus `optimize_file` with target-size two-pass encoding.
+- **V0.3 — Office (LibreOffice)**: DOCX/PPTX/XLSX→PDF; PDF→DOCX (experimental, OCR-ready parameter surface already specced); PDF compression.
+- Later: page-range selection, conversion chains (PPTX→PDF→PNG), video downscaling in `optimize_file`, resize/rotate image options.
 
 ## License
 

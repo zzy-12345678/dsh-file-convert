@@ -6,26 +6,37 @@ export * from './types.js'
 export { FORMATS, FORMAT_IDS, formatFromExtension, parseFormatArg, canonicalExtension, formatCategory } from './formats.js'
 export { ConversionRouter, type RouterDefaults, type ConvertFileRequest, type ConvertRunContext } from './router.js'
 export { detectFile, DetectError, type DetectOutcome } from './detect.js'
+export { resolveBinary } from './binary.js'
 export { defaultOutputPath, batchOutputPath } from './paths.js'
 export { ImageConverter } from './converters/image.js'
 export { PdfConverter } from './converters/pdf.js'
 export { DataConverter } from './converters/data.js'
+export { MediaConverter, FFMPEG, FFPROBE } from './converters/media.js'
+export { optimizeFile, type OptimizeResult } from './optimizers.js'
 
 import { ConversionRouter, type RouterDefaults } from './router.js'
 import { ImageConverter } from './converters/image.js'
 import { PdfConverter } from './converters/pdf.js'
 import { DataConverter } from './converters/data.js'
+import { MediaConverter } from './converters/media.js'
+import { resolveBinary } from './binary.js'
+import type { Logger } from './types.js'
 
-/** Assemble the V0.1 registry: image (sharp), pdf (pdfjs), data (yaml/csv). */
+const SILENT_LOGGER: Logger = { debug() {}, info() {}, warn() {}, error() {} }
+
+/** Assemble the registry: image (sharp), pdf (pdfjs), data (yaml/csv), media (ffmpeg). */
 export function createRouter(defaults?: Partial<RouterDefaults>): ConversionRouter {
+  const overrides = defaults?.binaryOverrides ?? {}
   const router = new ConversionRouter({
     quality: defaults?.quality ?? 85,
     dpi: defaults?.dpi ?? 150,
     timeoutMs: defaults?.timeoutMs ?? 120_000,
     outputRoots: defaults?.outputRoots,
+    binaryOverrides: overrides,
   })
   router.register(new ImageConverter())
   router.register(new PdfConverter())
   router.register(new DataConverter())
+  router.register(new MediaConverter((dep) => resolveBinary(dep, overrides, SILENT_LOGGER)))
   return router
 }

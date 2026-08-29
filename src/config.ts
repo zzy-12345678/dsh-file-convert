@@ -15,12 +15,18 @@ export interface Config {
    * set it when the harness is shared or exposed.
    */
   outputRoots: string[]
+  /** Explicit path to the ffmpeg binary (Windows installs without PATH). */
+  ffmpegPath?: string
+  /** Explicit path to the ffprobe binary (usually next to ffmpeg). */
+  ffprobePath?: string
 }
 
 export const Config: Schema<Config> = Schema.object({
   quality: Schema.number().min(1).max(100).default(85).description('Default JPEG/WebP quality (1-100).'),
   dpi: Schema.number().min(72).max(600).default(150).description('Default rasterization DPI for PDF/SVG inputs.'),
-  timeoutMs: Schema.number().min(1000).default(120_000).description('Cooperative timeout for one conversion (ms).'),
+  timeoutMs: Schema.number().min(1000).default(120_000).description('Cooperative timeout for one conversion (ms). For long video jobs consider 600000.'),
   batchMaxFiles: Schema.number().min(1).default(500).description('Max files examined per batch_convert run; extra files are reported, not silently skipped.'),
   outputRoots: Schema.array(Schema.string()).default([]).description('Restrict explicit output paths to these directories. Empty = unrestricted.'),
+  ffmpegPath: Schema.string().description('Explicit ffmpeg binary path (overrides PATH lookup).'),
+  ffprobePath: Schema.string().description('Explicit ffprobe binary path (overrides PATH lookup).'),
 })

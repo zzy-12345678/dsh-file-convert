@@ -5,6 +5,7 @@ import { createConvertFileTool } from './tools/convert-file.js'
 import { createBatchConvertTool } from './tools/batch-convert.js'
 import { createInspectFileTool } from './tools/inspect-file.js'
 import { createListConversionsTool } from './tools/list-conversions.js'
+import { createOptimizeFileTool } from './tools/optimize-file.js'
 
 export { Config } from './config.js'
 
@@ -20,14 +21,24 @@ const CONSOLE_LOGGER: Logger = {
 
 export function apply(ctx: Context, config: ConvertConfig) {
   const logger: Logger = isLogger(ctx.logger) ? ctx.logger : CONSOLE_LOGGER
-  const router = createRouter({ quality: config.quality, dpi: config.dpi, timeoutMs: config.timeoutMs, outputRoots: config.outputRoots })
+  const router = createRouter({
+    quality: config.quality,
+    dpi: config.dpi,
+    timeoutMs: config.timeoutMs,
+    outputRoots: config.outputRoots,
+    binaryOverrides: {
+      ...(config.ffmpegPath ? { ffmpegPath: config.ffmpegPath } : {}),
+      ...(config.ffprobePath ? { ffprobePath: config.ffprobePath } : {}),
+    },
+  })
 
   ctx.tools.register(createConvertFileTool(router, config, logger))
   ctx.tools.register(createBatchConvertTool(router, config, logger))
   ctx.tools.register(createInspectFileTool(router, config, logger))
   ctx.tools.register(createListConversionsTool(router, logger))
+  ctx.tools.register(createOptimizeFileTool(router, config, logger))
 
-  logger.info('dsh-file-convert loaded: 4 tools registered (18 local conversions)')
+  logger.info('dsh-file-convert loaded: 5 tools registered (22 conversions; media needs ffmpeg)')
 }
 
 function isLogger(value: unknown): value is Logger {

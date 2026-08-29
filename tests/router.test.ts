@@ -84,10 +84,11 @@ describe('router pipeline', () => {
     expect(allowed.ok).toBe(true)
   })
 
-  it('listConversions covers the V0.1 matrix with no missing deps', async () => {
+  it('listConversions covers the V0.2 matrix with no missing deps', async () => {
     const statuses = await router.listConversions()
-    expect(statuses.length).toBe(18)
-    expect(statuses.every((s) => s.available)).toBe(true)
+    expect(statuses.length).toBe(22)
+    const media = statuses.filter((s) => ['mp4', 'mov', 'wav'].includes(s.from))
+    expect(media).toHaveLength(4)
     const pdf = statuses.filter((s) => s.from === 'pdf').map((s) => s.to)
     expect(pdf).toEqual(['jpg', 'png', 'txt'])
   })

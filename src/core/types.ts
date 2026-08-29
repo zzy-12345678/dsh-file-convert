@@ -14,12 +14,17 @@ export type FormatId =
   | 'jpg'
   | 'webp'
   | 'svg'
+  | 'gif'
+  | 'mp4'
+  | 'mov'
+  | 'mp3'
+  | 'wav'
   | 'json'
   | 'yaml'
   | 'csv'
   | 'txt'
 
-export type FormatCategory = 'document' | 'image' | 'data' | 'text'
+export type FormatCategory = 'document' | 'image' | 'video' | 'audio' | 'data' | 'text'
 
 export interface FormatMeta {
   category: FormatCategory
@@ -191,6 +196,18 @@ export type InspectResult =
       encrypted: boolean
       /** Heuristic: almost no extractable text → likely a scanned PDF. */
       likelyScanned: boolean
+      bytes: number
+    }
+  | {
+      kind: 'media'
+      format: FormatId
+      durationSec?: number
+      width?: number
+      height?: number
+      fps?: number
+      audioCodec?: string
+      /** Present when ffprobe is missing; inspect degrades instead of failing. */
+      probeUnavailable?: boolean
       bytes: number
     }
   | { kind: 'data'; format: FormatId; records?: number; bytes: number }

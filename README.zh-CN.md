@@ -15,7 +15,7 @@ Agent 日常需要各种格式转换："把这个 PDF 转成图片"、"把这个
 - ✅ **自然语言友好** —— Agent 调 tool，你直接说话
 - ✅ **批量转换**，返回紧凑的结果摘要
 - ✅ **失败必有原因** —— 缺依赖 / 不支持的组合 / 输出已存在，每个错误都说明清楚
-- ✅ **V0.1 零外部依赖** —— 全部来自 npm 预编译包，装完即用
+- ✅ **图片/PDF/数据零外部依赖** —— npm 预编译包装完即用；音视频只依赖 ffmpeg，缺了会明确提示
 
 ## V0.1 支持的转换
 
@@ -26,9 +26,12 @@ Agent 日常需要各种格式转换："把这个 PDF 转成图片"、"把这个
 | PDF | PNG、JPG、TXT |
 | JSON | YAML、CSV |
 | YAML | JSON、CSV |
+| MP4 | GIF、MP3 |
+| MOV | MP4 |
+| WAV | MP3 |
 | CSV | JSON、YAML |
 
-共 18 种转换，`npm install` 后全部可用——暂不需要 Poppler、LibreOffice、FFmpeg。Office（DOCX/PPTX/XLSX→PDF，走 LibreOffice）和音视频（MP4→GIF/MP3，走 FFmpeg）计划在 V0.2/V0.3 提供，届时会在 `list_conversions` 里明确提示缺什么、怎么装。
+共 22 种转换。图片/PDF/数据 `npm install` 后开箱即用；四条音视频转换在 [FFmpeg](https://ffmpeg.org) 进入 PATH（或配置 `ffmpegPath`）后自动解锁——没装时 `list_conversions` 会标记为 unavailable 并指出缺什么。Office（DOCX/PPTX/XLSX→PDF，走 LibreOffice）计划在 V0.3。
 
 ## 安装
 
@@ -48,7 +51,7 @@ dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 
 重启 DSH（`dsh web` 或你的常规入口）后，四个 tool 自动出现。
 
-## 四个 Tool
+## 五个 Tool
 
 ### `convert_file` —— 单文件转换
 
@@ -81,6 +84,17 @@ dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 
 图片返回尺寸/通道数，数据文件返回记录数。`likelyScanned: true` 提示这可能是扫描件（此类 PDF 的 OCR 属于后续版本）。
 
+### `optimize_file` —— 按目标体积压缩
+
+```json
+{ "input": "video.mp4", "target_size_mb": 20 }
+```
+
+- MP4/MOV：两遍编码 x264，按目标体积反推视频码率（音频 128k，紧张时降到 64k），输出统一为 MP4，需要 ffmpeg + ffprobe。
+- JPG/WEBP：二分搜索能塞进目标体积的最高编码质量；PNG 走调色板压缩。图片不需要任何外部工具。
+- 目标体积低于编码物理下限时直接拒绝，并给出可达的最低体积。
+- GIF/PDF 压缩暂不支持。
+
 ### `list_conversions` —— 当前机器的能力清单
 
 列出全部支持的转换；某项不可用时，明确指出缺哪个外部工具并给出安装提示。V0.1 零外部依赖，全部可用。
@@ -94,6 +108,7 @@ dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 | `timeoutMs` | `120000` | 单次转换的协作式超时（毫秒） |
 | `batchMaxFiles` | `500` | 每次 `batch_convert` 最多检查的文件数；超出时会在结果里明确报告跳过了多少，而不是静默截断 |
 | `outputRoots` | `[]` | 非空时，显式指定的 `output` 路径必须落在这些目录之内（共享部署建议开启；默认写到输入文件旁的输出不受限） |
+| `ffmpegPath` / `ffprobePath` | - | ffmpeg 不在 PATH 时（Windows 常见）手动指定二进制路径 |
 
 ## 架构
 
@@ -112,6 +127,8 @@ dsh plugin --profile default add /absolute/path/to/dsh-file-convert
                  ImageConverter     PdfConverter      DataConverter
                     sharp          pdfjs-dist         js-yaml
                  （npm libvips）  @napi-rs/canvas    csv-parse / stringify
+                                                     MediaConverter
+                                                    ffmpeg（可选，自动检测）
 ```
 
 - **声明式转换矩阵**：每条转换是 converter 上的一行数据（`{ from, to }`），Router 路由、`list_conversions`、依赖检查全部由此推导。
@@ -132,9 +149,9 @@ npm run smoke     # 针对 lib/ 的端到端冒烟测试
 
 ## Roadmap
 
-- **V0.2 —— 音视频（FFmpeg）**：MP4→GIF、MP4→MP3、WAV→MP3、MOV→MP4；按目标体积自动压缩的 `optimize_file`。
-- **V0.3 —— Office（LibreOffice）**：DOCX/PPTX/XLSX→PDF；PDF→DOCX（实验性，OCR 参数位已预留）。
-- 更远：页码范围选择、转换链（PPTX→PDF→PNG）、更多图片选项（缩放、旋转）。
+- ~~V0.2 —— 音视频（FFmpeg）~~ **已发布**：MP4→GIF/MP3、WAV→MP3、MOV→MP4，以及按目标体积两遍编码的 `optimize_file`。
+- **V0.3 —— Office（LibreOffice）**：DOCX/PPTX/XLSX→PDF；PDF→DOCX（实验性，OCR 参数位已预留）；PDF 压缩。
+- 更远：页码范围选择、转换链（PPTX→PDF→PNG）、`optimize_file` 视频降分辨率、图片缩放/旋转。
 
 ## 许可
 

@@ -6,6 +6,7 @@ import { detectFile, DetectError, type DetectOutcome } from './detect.js'
 import { inspectFile } from './inspect.js'
 import { defaultOutputPath } from './paths.js'
 import { resolveBinary } from './binary.js'
+import { FFPROBE } from './converters/media.js'
 import type {
   ConvertContext,
   ConvertOptions,
@@ -33,6 +34,8 @@ export interface RouterDefaults {
    * single-user harness; set it for shared deployments.
    */
   outputRoots?: string[]
+  /** Config-key overrides for external binary resolution, e.g. ffmpegPath. */
+  binaryOverrides?: Record<string, string>
 }
 
 export interface ConvertFileRequest {
@@ -94,7 +97,7 @@ export class ConversionRouter {
       for (const cap of converter.capabilities) {
         const missing: string[] = []
         for (const dep of converter.binaryDeps) {
-          if (!(await resolveBinary(dep, {}, NULL_LOGGER))) missing.push(dep.name)
+          if (!(await resolveBinary(dep, this.defaults.binaryOverrides ?? {}, NULL_LOGGER))) missing.push(dep.name)
         }
         for (const name of cap.extraDeps ?? []) missing.push(name)
         statuses.push({
@@ -147,7 +150,7 @@ export class ConversionRouter {
         }
       }
 
-      const missing = await missingDeps(converter)
+      const missing = await missingDeps(converter, this.defaults.binaryOverrides ?? {})
       if (missing.length > 0) {
         return {
           ok: false, input: req.input, from, to,
@@ -223,7 +226,14 @@ export class ConversionRouter {
   async inspect(input: string): Promise<InspectResult> {
     const { detection } = await detectFile(input)
     const bytes = (await fs.stat(input)).size
-    return inspectFile(input, detection, bytes)
+    let media: Parameters<typeof inspectFile>[3]
+    if (detection.format === 'mp4' || detection.format === 'mov' || detection.format === 'mp3' || detection.format === 'wav') {
+      const ffprobe = await resolveBinary(FFPROBE, this.defaults.binaryOverrides ?? {}, NULL_LOGGER)
+      if (ffprobe) {
+        media = { ffprobePath: ffprobe, timeoutMs: Math.min(this.defaults.timeoutMs, 30_000) }
+      }
+    }
+    return inspectFile(input, detection, bytes, media)
   }
 }
 
@@ -253,10 +263,10 @@ function isInsideRoots(output: string, roots: string[] | undefined): boolean {
   })
 }
 
-async function missingDeps(converter: Converter) {
+async function missingDeps(converter: Converter, overrides: Record<string, string>) {
   const missing: import('./types.js').BinaryDependency[] = []
   for (const dep of converter.binaryDeps) {
-    if (!(await resolveBinary(dep, {}, NULL_LOGGER))) missing.push(dep)
+    if (!(await resolveBinary(dep, overrides, NULL_LOGGER))) missing.push(dep)
   }
   return missing
 }

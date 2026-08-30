@@ -131,6 +131,39 @@ describe('security hardening', () => {
     expect(meta.format).toBe('jpeg')
   })
 
+  it('optimize refuses an output that symlinks to the input', async () => {
+    const dir = await tmpDir()
+    const input = await writeTransparentPng(dir, 'src.png')
+    const alias = path.join(dir, 'alias.png')
+    try {
+      await fs.symlink(input, alias, 'file')
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'EPERM') {
+        console.warn('file symlinks unavailable on this machine; skipping')
+        return
+      }
+      throw err
+    }
+    const { createOptimizeFileTool } = await import('../src/tools/optimize-file.js')
+    const { createRouter } = await import('../src/core/index.js')
+    const config = { quality: 85, dpi: 150, timeoutMs: 60_000, batchMaxFiles: 10, outputRoots: [] }
+    const tool = createOptimizeFileTool(createRouter(), config, NULL_LOGGER)
+    await expect(
+      tool.execute({ input: alias, target_size_mb: 1, output: input, overwrite: true }, { signal: new AbortController().signal } as never),
+    ).rejects.toThrow(/destroy the source/)
+  })
+
+  it('atomic writes replace content fully and leave no temp leftovers', async () => {
+    const dir = await tmpDir()
+    const { writeFileAtomic } = await import('../src/core/index.js')
+    const file = path.join(dir, 'f.txt')
+    await writeFileAtomic(file, 'first')
+    await writeFileAtomic(file, 'second-longer-content')
+    expect(await fs.readFile(file, 'utf8')).toBe('second-longer-content')
+    const leftovers = (await fs.readdir(dir)).filter((n) => n.includes('.tmp'))
+    expect(leftovers).toEqual([])
+  })
+
   it('fails huge JSON immediately via the input size limit', async () => {
     const dir = await tmpDir()
     const input = path.join(dir, 'big.json')

@@ -4,7 +4,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { BinaryDependency, ConversionRouter, Logger } from '../core/index.js'
 import { DetectError, optimizeFile, resolveBinary } from '../core/index.js'
 import { canonicalExtension } from '../core/index.js'
-import { isInsideAnyRoot } from '../core/index.js'
+import { isInsideAnyRoot, isSameFile } from '../core/index.js'
 import type { Config } from '../config.js'
 import { formatBytes, formatDuration, formatFailure } from '../format.js'
 
@@ -54,7 +54,7 @@ export function createOptimizeFileTool(router: ConversionRouter, config: Config,
         args.output ??
         path.join(path.dirname(args.input), `${path.basename(args.input, path.extname(args.input))}-min${outExt}`)
 
-      if (path.resolve(output) === path.resolve(args.input)) {
+      if (await isSameFile(output, args.input)) {
         throw new Error('Output path equals the input path; optimizing would destroy the source. Use the default -min output name or pick another path.')
       }
       if (args.output !== undefined && config.outputRoots.length > 0 && !(await isInsideAnyRoot(args.output, config.outputRoots))) {

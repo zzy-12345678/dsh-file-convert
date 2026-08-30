@@ -3,8 +3,10 @@ import path from 'node:path'
 
 /**
  * Write `data` to `target` atomically: the bytes land in a sibling temp file
- * first and are renamed into place only when complete, so an interrupted run
- * never leaves a half-written output behind.
+ * (same volume, so rename never hits EXDEV) and are renamed over the target
+ * only when complete. Windows AV scanners can hold the target briefly - those
+ * lock errors are retried a few times; a persistent failure throws loudly
+ * rather than degrading to a non-atomic copy.
  */
 export async function writeFileAtomic(target: string, data: Buffer | string): Promise<void> {
   const tmp = path.join(
@@ -13,12 +15,15 @@ export async function writeFileAtomic(target: string, data: Buffer | string): Pr
   )
   try {
     await fs.writeFile(tmp, data)
-    try {
-      await fs.rename(tmp, target)
-    } catch {
-      // cross-device or platform quirk: fall back to a full copy
-      await fs.copyFile(tmp, target)
-      await fs.rm(tmp, { force: true })
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await fs.rename(tmp, target)
+        return
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code
+        if (attempt >= 2 || (code !== 'EPERM' && code !== 'EACCES' && code !== 'EBUSY')) throw err
+        await new Promise((resolve) => setTimeout(resolve, 75 * (attempt + 1)))
+      }
     }
   } catch (err) {
     await fs.rm(tmp, { force: true }).catch(() => undefined)

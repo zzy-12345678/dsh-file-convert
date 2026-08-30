@@ -119,10 +119,11 @@ describeIfGs('optimize_file (pdf, needs ghostscript)', () => {
     const dir = await tmpDir()
     // 720x720 px on a 240x240 pt page = 216 dpi effective, so Ghostscript's
     // /ebook (150 dpi) preset actually downsamples the image.
-    const jpg = await writeColorfulImage(dir, 'photo.jpg', 30)
+    const jpgPath = await writeColorfulImage(dir, 'photo.jpg', 30)
     const { PDFDocument } = await import('pdf-lib')
     const pdf = await PDFDocument.create()
-    const image = await pdf.embedJpg(jpg)
+    // embedJpg expects the JPEG bytes (a path string would be read as base64)
+    const image = await pdf.embedJpg(await fs.readFile(jpgPath))
     const page = pdf.addPage([240, 240])
     page.drawImage(image, { x: 0, y: 0, width: 240, height: 240 })
     const input = path.join(dir, 'doc.pdf')

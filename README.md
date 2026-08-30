@@ -197,6 +197,7 @@ Add a conversion = add one capability row + implement it in a converter. Add a b
 
 - ~~V0.2 — Media (FFmpeg)~~ **shipped**: MP4→GIF/MP3, WAV→MP3, MOV→MP4, plus `optimize_file` with target-size two-pass encoding.
 - ~~V0.3 — Office + PDF tooling~~ **shipped**: DOCX/PPTX/XLSX→PDF via LibreOffice, experimental PDF→DOCX via python pdf2docx, PDF compression via Ghostscript; on-demand dependency downloads with an automatic CN mirror.
+- ~~V0.4 — OCR (Tesseract)~~ **shipped**: PDF→TXT supports `ocr: true` (optional `ocr_lang`), local Tesseract CLI first with the bundled tesseract.js as fallback, language data fetched explicitly via `install_ocr_dependencies`.
 - Later: OCR → DOCX for scanned PDFs, conversion chains (PPTX→PDF→PNG), video downscaling in `optimize_file`, resize/rotate image options.
 
 ## License

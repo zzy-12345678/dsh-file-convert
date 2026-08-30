@@ -173,6 +173,7 @@ npm run smoke     # 针对 lib/ 的端到端冒烟测试
 
 - ~~V0.2 —— 音视频（FFmpeg）~~ **已发布**：MP4→GIF/MP3、WAV→MP3、MOV→MP4，以及按目标体积两遍编码的 `optimize_file`。
 - ~~V0.3 —— Office + PDF 工具链~~ **已发布**：LibreOffice 解锁 DOCX/PPTX/XLSX→PDF，python pdf2docx 支持实验性 PDF→DOCX，Ghostscript 支持 PDF 压缩；依赖支持按需下载并默认走国内镜像。
+- ~~V0.4 —— OCR（Tesseract）~~ **已发布**：PDF→TXT 支持 `ocr: true`（可选 `ocr_lang`），Tesseract CLI 优先 + tesseract.js 兜底，语言数据经 `install_ocr_dependencies` 显式下载。
 - 更远：扫描件 OCR → DOCX、转换链（PPTX→PDF→PNG）、`optimize_file` 视频降分辨率、图片缩放/旋转。
 
 ## 许可

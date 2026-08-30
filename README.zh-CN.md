@@ -189,7 +189,7 @@ PDF 走 Ghostscript 三档预设（printer/ebook/screen）自动迭代：某档�
 ```sh
 npm install
 npm run build     # tsc -> lib/
-npm test          # vitest，63 项测试（另有个位数按环境门控的套件）
+npm test          # vitest，73 项测试（另有个位数按环境门控的套件）
 npm run smoke     # 针对 lib/ 的端到端冒烟测试
 ```
 

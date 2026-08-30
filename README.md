@@ -209,7 +209,7 @@ All 26 conversions with their live availability on *this* machine — unavailabl
 ```sh
 npm install
 npm run build     # tsc -> lib/
-npm test          # vitest, 63 tests (plus a few environment-gated suites)
+npm test          # vitest, 73 tests (plus a few environment-gated suites)
 npm run smoke     # end-to-end against lib/
 ```
 

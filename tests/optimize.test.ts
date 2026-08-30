@@ -12,7 +12,7 @@ const NULL_LOGGER = { debug() {}, info() {}, warn() {}, error() {} }
 const SILENT_RESOLVE = async () => null
 
 /** A colorful, hard-to-compress image so encoder quality actually matters. */
-async function writeColorfulImage(dir: string, name: string): Promise<string> {
+async function writeColorfulImage(dir: string, name: string, cellPx = 10): Promise<string> {
   const size = 24
   const cells: string[] = []
   let seed = 42
@@ -25,10 +25,10 @@ async function writeColorfulImage(dir: string, name: string): Promise<string> {
       const r = Math.floor(rand() * 256)
       const g = Math.floor(rand() * 256)
       const b = Math.floor(rand() * 256)
-      cells.push(`<rect x="${x * 10}" y="${y * 10}" width="10" height="10" fill="rgb(${r},${g},${b})"/>`)
+      cells.push(`<rect x="${x * cellPx}" y="${y * cellPx}" width="${cellPx}" height="${cellPx}" fill="rgb(${r},${g},${b})"/>`)
     }
   }
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size * 10}" height="${size * 10}">${cells.join('')}</svg>`
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size * cellPx}" height="${size * cellPx}">${cells.join('')}</svg>`
   const file = path.join(dir, name)
   const pipeline = sharp(Buffer.from(svg))
   if (name.endsWith('.jpg')) await pipeline.jpeg({ quality: 95 }).toFile(file)
@@ -117,7 +117,9 @@ const describeIfGs = GS_AVAILABLE ? describe : describe.skip
 describeIfGs('optimize_file (pdf, needs ghostscript)', () => {
   it('shrinks an image-heavy pdf below the target', async () => {
     const dir = await tmpDir()
-    const jpg = await writeColorfulImage(dir, 'photo.jpg')
+    // 720x720 px on a 240x240 pt page = 216 dpi effective, so Ghostscript's
+    // /ebook (150 dpi) preset actually downsamples the image.
+    const jpg = await writeColorfulImage(dir, 'photo.jpg', 30)
     const { PDFDocument } = await import('pdf-lib')
     const pdf = await PDFDocument.create()
     const image = await pdf.embedJpg(jpg)
@@ -127,7 +129,7 @@ describeIfGs('optimize_file (pdf, needs ghostscript)', () => {
     await fs.writeFile(input, await pdf.save())
 
     const bytesIn = (await fs.stat(input)).size
-    const targetBytes = Math.floor(bytesIn * 0.6)
+    const targetBytes = Math.floor(bytesIn * 0.7)
     // gs resolves by command name on the platforms that ship it
     const realResolve = async () => GS_COMMAND
 

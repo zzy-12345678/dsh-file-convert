@@ -46,16 +46,22 @@ describeIfSoffice('office conversions (LibreOffice)', () => {
 })
 
 describeIfPdf2docx('pdf -> docx (experimental, python pdf2docx)', () => {
-  it('converts a text pdf into a docx', async () => {
+  it('converts a text pdf into a docx that contains the source text', async () => {
     const dir = await tmpDir()
-    const input = await writePdf(dir)
+    const input = await writePdf(dir) // draws "Hello dsh-file-convert"
     const output = path.join(dir, 'out.docx')
 
     const result = await router.convertFile({ input, outputFormat: 'docx', output }, { logger: NULL_LOGGER })
     expect(result.ok).toBe(true)
-    if (result.ok) {
-      expect(result.bytesOut).toBeGreaterThan(0)
-      expect(result.warnings.join(' ')).toMatch(/experimental/i)
-    }
+    if (!result.ok) return
+
+    expect(result.bytesOut).toBeGreaterThan(0)
+    expect(result.warnings.join(' ')).toMatch(/experimental/i)
+
+    // The conversion must carry the text over, not just produce a file.
+    const { unzipSync } = await import('fflate')
+    const docx = unzipSync(await fs.readFile(output))
+    const documentXml = Buffer.from(docx['word/document.xml']).toString('utf8')
+    expect(documentXml).toContain('Hello dsh-file-convert')
   })
 })

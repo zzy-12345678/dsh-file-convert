@@ -172,6 +172,9 @@ async function optimizeVideo(
   }
 
   const passlog = path.join(os.tmpdir(), `dsh-file-convert-pass-${Date.now()}`)
+  // pass 2 writes to a scratch file; the output path only ever sees a
+  // complete file, so an abort never leaves a broken mp4 behind.
+  const scratch = path.join(os.tmpdir(), `dsh-file-convert-out-${Date.now()}.mp4`)
   try {
     try {
       await execTool(ffmpeg, [
@@ -183,8 +186,9 @@ async function optimizeVideo(
         ...FFMPEG_GLOBAL, '-i', input,
         '-c:v', 'libx264', '-b:v', `${videoKbps}k`, '-pass', '2', '-passlogfile', passlog,
         '-c:a', 'aac', '-b:a', `${audioKbps}k`, '-movflags', '+faststart',
-        output,
+        scratch,
       ], { timeoutMs: ctx.timeoutMs, signal: ctx.signal })
+      await fs.copyFile(scratch, output)
     } catch (err) {
       // Sources with broken DTS/timestamps (screen recordings, stitched clips)
       // can fail pass 2; point users at the normalize-then-optimize path.
@@ -197,6 +201,7 @@ async function optimizeVideo(
       throw err
     }
   } finally {
+    await fs.rm(scratch, { force: true }).catch(() => undefined)
     for (const suffix of ['-0.log', '-0.log.mbtree']) {
       await fs.rm(passlog + suffix, { force: true }).catch(() => undefined)
     }
@@ -262,35 +267,52 @@ async function optimizePdf(
   ctx: ConvertContext,
 ): Promise<{ detail: string; warnings: string[] }> {
   const gs = await requireBinary(resolve, GHOSTSCRIPT, ctx)
+  // Default SAFER mode applies: the command-line input file and the explicit
+  // -sOutputFile are both inside its allowlist, so no -dNOSAFER is needed.
   const base = [
-    '-dNOPAUSE', '-dBATCH', '-dQUIET', '-dNOSAFER',
+    '-dNOPAUSE', '-dBATCH', '-dQUIET',
     '-sDEVICE=pdfwrite', '-dCompatibilityLevel=1.4',
-    `-sOutputFile=${output}`,
   ]
-  let smallestSize = Number.POSITIVE_INFINITY
+  // Each preset writes to a scratch file; the final winner is copied to the
+  // output path atomically, so an abort never leaves a half-written PDF.
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'dsh-pdf-opt-'))
+  try {
+    let smallestSize = Number.POSITIVE_INFINITY
+    let smallestFile = ''
+    let smallestName = ''
 
-  for (const preset of PDF_PRESETS) {
-    if (ctx.signal?.aborted) {
-      throw new OptimizeError(convertError('cancelled', 'Optimization cancelled.'))
+    for (const [index, preset] of PDF_PRESETS.entries()) {
+      if (ctx.signal?.aborted) {
+        throw new OptimizeError(convertError('cancelled', 'Optimization cancelled.'))
+      }
+      const attempt = path.join(tmpDir, `attempt-${index}.pdf`)
+      await execTool(gs, [...base, `-sOutputFile=${attempt}`, `-dPDFSETTINGS=${preset.setting}`, input], {
+        timeoutMs: ctx.timeoutMs,
+        signal: ctx.signal,
+      })
+      const size = (await fs.stat(attempt)).size
+      if (size <= targetBytes) {
+        await fs.copyFile(attempt, output)
+        return { detail: `ghostscript ${preset.name}`, warnings: [] }
+      }
+      if (size < smallestSize) {
+        smallestSize = size
+        smallestFile = attempt
+        smallestName = preset.name
+      }
     }
-    await execTool(gs, [...base, `-dPDFSETTINGS=${preset.setting}`, input], {
-      timeoutMs: ctx.timeoutMs,
-      signal: ctx.signal,
-    })
-    const size = (await fs.stat(output)).size
-    if (size <= targetBytes) {
-      return { detail: `ghostscript ${preset.name}`, warnings: [] }
-    }
-    if (size < smallestSize) smallestSize = size
-  }
 
-  // The screen preset (smallest) is still above the target; its output is
-  // already written, so return it with an honest warning.
-  return {
-    detail: 'ghostscript screen (72 dpi)',
-    warnings: [
-      `Even the lowest preset exceeds the target (${Math.round(smallestSize / 1024)} KB produced); the smallest result was kept.`,
-    ],
+    // The screen preset (smallest) is still above the target; keep it with
+    // an honest warning.
+    await fs.copyFile(smallestFile, output)
+    return {
+      detail: 'ghostscript screen (72 dpi)',
+      warnings: [
+        `Even the lowest preset exceeds the target (${Math.round(smallestSize / 1024)} KB produced); the smallest result was kept.`,
+      ],
+    }
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined)
   }
 }
 

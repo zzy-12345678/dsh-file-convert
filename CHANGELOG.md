@@ -1,3 +1,9 @@
+## [0.4.3] - 2026-08-30
+
+### Changed
+
+- Release infrastructure: tag-driven publishes now run through OIDC trusted publishing on GitHub Actions (no npm tokens, provenance attestations included). No code changes beyond 0.4.2.
+
 ## [0.4.2] - 2026-08-30
 
 ### Fixed

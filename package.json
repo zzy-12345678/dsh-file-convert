@@ -1,6 +1,6 @@
 {
   "name": "dsh-file-convert",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Local-first file conversion for DeepSeek Harness - images, PDF, data, audio/video and office documents. No API keys, no uploads, no token cost.",
   "license": "MIT",
   "type": "module",

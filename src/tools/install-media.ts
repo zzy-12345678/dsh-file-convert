@@ -7,23 +7,19 @@ import { formatBytes } from '../format.js'
 
 /**
  * One explicit, user-approved path to media support: downloads pinned static
- * ffmpeg/ffprobe builds from the npm registry into the plugin cache. System
- * installs always keep priority; this only fills the gap.
+ * ffmpeg/ffprobe builds (FFmpeg 6.1.1) into the plugin cache via the
+ * npmmirror binary CDN, with the GitHub release as a sha256-identical
+ * fallback. System installs always keep priority; this only fills the gap.
  */
 export function createInstallMediaTool(config: Config, logger: Logger) {
   return defineTool({
     name: 'install_media_dependencies',
     description:
-      'Download pinned static ffmpeg and ffprobe builds (roughly 80-140 MB depending on platform and pinned version; the exact size is reported after download, from the npmmirror registry by default with sha512 integrity verification) into the plugin cache (~/.dsh-file-convert/bin), so mp4/mov/wav conversions and video optimize_file work without a system install. Ask the user for consent before calling. Skips what is already available; a system ffmpeg keeps priority over the cache.',
+      'Download pinned static ffmpeg and ffprobe builds (FFmpeg 6.1.1, about 56 MB total on Windows as two ~28 MB downloads) into the plugin cache (~/.dsh-file-convert/bin), so mp4/mov/wav conversions and video optimize_file work without a system install. Served from the npmmirror binary CDN with the GitHub release as fallback, both sha256-verified. Ask the user for consent before calling. Skips what is already available; a system ffmpeg keeps priority over the cache.',
     parameters: {
       force: {
         type: 'boolean',
         description: 'Re-download even if a cached copy exists (e.g. after a corrupted download). Default false.',
-      },
-      registry: {
-        type: 'string',
-        description:
-          'npm registry to download from. Default: https://registry.npmmirror.com first with npmjs.org as fallback (pass a registry to pin one).',
       },
     },
     output: {
@@ -49,7 +45,6 @@ export function createInstallMediaTool(config: Config, logger: Logger) {
           timeoutMs: Math.max(config.timeoutMs, 900_000),
           signal: exec.signal,
           force: args.force === true,
-          registry: args.registry as string | undefined,
         })
         lines.push(`+ ${dep.name}: installed at ${outcome.path} (${formatBytes(outcome.bytes)}) - ${outcome.versionLine}`)
       }

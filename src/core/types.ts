@@ -166,6 +166,13 @@ export interface ConvertContext {
   signal?: AbortSignal
   /** Hard deadline for a single conversion, in milliseconds. */
   timeoutMs: number
+  /** Resource ceilings applied to rasterization and page loops. */
+  limits?: {
+    /** Full-document PDF rasterization refuses to exceed this page count. */
+    maxPdfPages?: number
+    /** Rasterized pixels per page (width × height) are clamped to this. */
+    maxOutputPixels?: number
+  }
 }
 
 // ─── Converter contract ─────────────────────────────────────────────────────

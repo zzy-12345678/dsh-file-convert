@@ -36,6 +36,12 @@ export interface RouterDefaults {
   outputRoots?: string[]
   /** Config-key overrides for external binary resolution, e.g. ffmpegPath. */
   binaryOverrides?: Record<string, string>
+  /** Inputs larger than this are refused (bytes). Default 2 GiB. */
+  maxInputBytes?: number
+  /** Full-document PDF rasterization refuses to exceed this page count. Default 200. */
+  maxPdfPages?: number
+  /** Rasterized pixels per page are clamped to this. Default 16 MP. */
+  maxOutputPixels?: number
 }
 
 export interface ConvertFileRequest {
@@ -137,6 +143,24 @@ export class ConversionRouter {
     }
 
     try {
+      const inputStat = await fs.stat(req.input).catch(() => null)
+      if (inputStat?.isDirectory()) {
+        return {
+          ok: false, input: req.input, to,
+          error: convertError('invalid_input', `Input is a directory, not a file: ${req.input}`),
+        }
+      }
+      const maxInputBytes = this.defaults.maxInputBytes ?? 2 * 1024 ** 3
+      if (inputStat && inputStat.size > maxInputBytes) {
+        const formatMb = (n: number) => `${Math.round(n / 1048576).toLocaleString('en-US')} MB`
+        return {
+          ok: false, input: req.input, to,
+          error: convertError('invalid_input', `Input is ${formatMb(inputStat.size)}, above the ${formatMb(maxInputBytes)} limit.`, {
+            hint: "Raise 'maxInputMb' in the plugin config, or convert in parts.",
+          }),
+        }
+      }
+
       const { detection, warnings } = await detectFile(req.input)
       const from = detection.format
 
@@ -170,7 +194,7 @@ export class ConversionRouter {
       }
 
       const output = req.output ?? defaultOutputPath(req.input, to)
-      if (isSameFile(output, req.input)) {
+      if (await isSameFile(output, req.input)) {
         return {
           ok: false, input: req.input, from, to,
           error: convertError('invalid_input', 'Output path equals the input path; converting would destroy the source.', {
@@ -178,7 +202,7 @@ export class ConversionRouter {
           }),
         }
       }
-      if (req.output !== undefined && !isInsideRoots(output, this.defaults.outputRoots)) {
+      if (req.output !== undefined && !(await isInsideRoots(output, this.defaults.outputRoots))) {
         return {
           ok: false, input: req.input, from, to,
           error: convertError('invalid_input', `Output path ${output} is outside every configured outputRoot.`, {
@@ -212,6 +236,7 @@ export class ConversionRouter {
         logger: run.logger,
         signal: run.signal,
         timeoutMs: this.defaults.timeoutMs,
+        limits: { maxPdfPages: this.defaults.maxPdfPages, maxOutputPixels: this.defaults.maxOutputPixels },
       }
 
       const result = await withTimeout(converter.convert(request, ctx), ctx.timeoutMs, {
@@ -253,23 +278,50 @@ const CATEGORY_RANK = new Map<FormatId, number>(
     .map((format, index) => [format, index]),
 )
 
-function isSameFile(a: string, b: string): boolean {
-  const ra = path.resolve(a)
-  const rb = path.resolve(b)
+/**
+ * realpath the deepest EXISTING ancestor of a path and rejoin the remainder:
+ * symlinks anywhere in the existing part are resolved, which is what
+ * outputRoots confinement needs (a symlink inside a root can point outside).
+ */
+async function realPathBestEffort(p: string): Promise<string> {
+  let current = path.resolve(p)
+  const tail: string[] = []
+  for (;;) {
+    try {
+      return path.join(await fs.realpath(current), ...tail.reverse())
+    } catch {
+      /* segment does not exist yet - walk up */
+    }
+    const parent = path.dirname(current)
+    if (parent === current) return path.resolve(p)
+    tail.push(path.basename(current))
+    current = parent
+  }
+}
+
+async function isSameFile(a: string, b: string): Promise<boolean> {
+  const ra = await realPathBestEffort(a)
+  const rb = await realPathBestEffort(b)
   if (ra === rb) return true
   // Windows paths are case-insensitive; also fold / vs \.
   return process.platform === 'win32' && ra.replace(/\\/g, '/').toLowerCase() === rb.replace(/\\/g, '/').toLowerCase()
 }
 
-function isInsideRoots(output: string, roots: string[] | undefined): boolean {
+async function isInsideRoots(output: string, roots: string[] | undefined): Promise<boolean> {
   if (!roots || roots.length === 0) return true
-  const resolved = path.resolve(output)
-  const candidates = process.platform === 'win32' ? resolved.replace(/\\/g, '/').toLowerCase() : resolved
-  return roots.some((root) => {
-    const rr = path.resolve(root)
-    const prefix = process.platform === 'win32' ? rr.replace(/\\/g, '/').toLowerCase() : rr
-    return candidates === prefix || candidates.startsWith(prefix.endsWith('/') ? prefix : prefix + '/')
-  })
+  const candidate = await realPathBestEffort(output)
+  const normalized = process.platform === 'win32' ? candidate.replace(/\\/g, '/').toLowerCase() : candidate
+  for (const root of roots) {
+    const prefix = await realPathBestEffort(path.resolve(root))
+    const normalizedPrefix = process.platform === 'win32' ? prefix.replace(/\\/g, '/').toLowerCase() : prefix
+    if (
+      normalized === normalizedPrefix ||
+      normalized.startsWith(normalizedPrefix.endsWith('/') ? normalizedPrefix : normalizedPrefix + '/')
+    ) {
+      return true
+    }
+  }
+  return false
 }
 
 async function missingDeps(converter: Converter, overrides: Record<string, string>) {

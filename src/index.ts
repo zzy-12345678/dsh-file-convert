@@ -36,6 +36,9 @@ export function apply(ctx: Context, config: ConvertConfig) {
       ...(config.pythonPath ? { pythonPath: config.pythonPath } : {}),
       ...(config.tesseractPath ? { tesseractPath: config.tesseractPath } : {}),
     },
+    maxInputBytes: config.maxInputMb * 1024 * 1024,
+    maxPdfPages: config.maxPdfPages,
+    maxOutputPixels: config.maxOutputPixels,
   })
 
   ctx.tools.register(createConvertFileTool(router, config, logger))

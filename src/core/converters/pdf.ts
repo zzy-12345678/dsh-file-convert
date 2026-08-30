@@ -130,8 +130,17 @@ export class PdfConverter implements Converter {
     started: number,
   ): Promise<ConvertResult> {
     const totalPages = doc.numPages
+    const explicitSelection = Boolean(req.options.pages)
     const selected = req.options.pages ? parsePageRange(req.options.pages, totalPages) : pageRange(totalPages)
+    const maxPdfPages = ctx.limits?.maxPdfPages
+    if (!explicitSelection && maxPdfPages && totalPages > maxPdfPages) {
+      return failErr(req, convertError('invalid_input', `PDF has ${totalPages} pages, above the ${maxPdfPages}-page rasterization limit.`, {
+        hint: `Use pages (e.g. '1-${maxPdfPages}') to select, or raise 'maxPdfPages' in the plugin config.`,
+      }))
+    }
     const scale = (req.options.dpi ?? 150) / 72 // PDFs have no intrinsic pixel size; 150 is a sane default.
+    const maxOutputPixels = ctx.limits?.maxOutputPixels
+    let scaleReduced = false
     const pad = String(totalPages).length
     const outputs: string[] = []
     const warnings: string[] = []
@@ -143,7 +152,20 @@ export class PdfConverter implements Converter {
       }
       const page = await doc.getPage(n)
       try {
-        const buffer = await renderPage(page, scale, {
+        let renderScale = scale
+        if (maxOutputPixels) {
+          const viewport = page.getViewport({ scale })
+          const pixels = viewport.width * viewport.height
+          if (pixels > maxOutputPixels) {
+            renderScale = scale * Math.sqrt(maxOutputPixels / pixels)
+            // ceil() on the viewport dims can nudge us just over the budget
+            const cw = Math.ceil(viewport.width * (renderScale / scale))
+            const ch = Math.ceil(viewport.height * (renderScale / scale))
+            if (cw * ch > maxOutputPixels) renderScale *= maxOutputPixels / (cw * ch)
+            scaleReduced = true
+          }
+        }
+        const buffer = await renderPage(page, renderScale, {
           background: req.to === 'jpg' ? req.options.background ?? '#ffffff' : undefined,
           quality: req.options.quality ?? 85,
           to: req.to as 'png' | 'jpg',
@@ -161,6 +183,9 @@ export class PdfConverter implements Converter {
       warnings.push(`Converted page(s) ${selected.join(', ')} of ${totalPages} (pages option).`)
     } else if (totalPages > 1) {
       warnings.push(`PDF has ${totalPages} pages; wrote ${totalPages} files named <name>-<page>.${req.to}.`)
+    }
+    if (scaleReduced) {
+      warnings.push(`Raster scale was reduced on some pages to fit the pixel budget (maxOutputPixels).`)
     }
 
     return {

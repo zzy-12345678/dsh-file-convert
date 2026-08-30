@@ -27,6 +27,12 @@ export interface Config {
   pythonPath?: string
   /** Explicit tesseract binary for OCR (falls back to bundled tesseract.js). */
   tesseractPath?: string
+  /** Refuse inputs above this size (MB). */
+  maxInputMb: number
+  /** Refuse full-document PDF rasterization above this page count. */
+  maxPdfPages: number
+  /** Clamp rasterized pixels per page (width x height) to this budget. */
+  maxOutputPixels: number
 }
 
 export const Config: Schema<Config> = Schema.object({
@@ -34,11 +40,14 @@ export const Config: Schema<Config> = Schema.object({
   dpi: Schema.number().min(72).max(600).default(150).description('Default rasterization DPI for PDF/SVG inputs.'),
   timeoutMs: Schema.number().min(1000).default(120_000).description('Cooperative timeout for one conversion (ms). For long video jobs consider 600000.'),
   batchMaxFiles: Schema.number().min(1).default(500).description('Max files examined per batch_convert run; extra files are reported, not silently skipped.'),
-  outputRoots: Schema.array(Schema.string()).default([]).description('Restrict explicit output paths to these directories. Empty = unrestricted.'),
+  outputRoots: Schema.array(Schema.string()).default([]).description('Restrict explicit output paths to these directories. Empty = unrestricted. Symlinks are resolved; the default next-to-input output is exempt.'),
   ffmpegPath: Schema.string().description('Explicit ffmpeg binary path (overrides PATH lookup).'),
   ffprobePath: Schema.string().description('Explicit ffprobe binary path (overrides PATH lookup).'),
   sofficePath: Schema.string().description('Explicit LibreOffice soffice binary path (overrides auto-detection).'),
   ghostscriptPath: Schema.string().description('Explicit Ghostscript binary path (overrides PATH lookup).'),
   pythonPath: Schema.string().description('Explicit python interpreter for the pdf2docx-based PDF → DOCX conversion.'),
   tesseractPath: Schema.string().description('Explicit tesseract binary for OCR (falls back to bundled tesseract.js).'),
+  maxInputMb: Schema.number().min(1).default(2048).description('Refuse inputs above this size (MB).'),
+  maxPdfPages: Schema.number().min(1).default(200).description('Full-document PDF rasterization refuses to exceed this page count; use pages for larger documents.'),
+  maxOutputPixels: Schema.number().min(100_000).default(16_000_000).description('Clamp rasterized pixels per page (width x height) to this budget.'),
 })

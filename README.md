@@ -35,7 +35,7 @@ Agents constantly need file conversions: "turn this PDF into images", "give me t
 
 26 conversions. Images, PDF and data work out of the box via `npm install`. Optional tools unlock the rest, each clearly reported by `list_conversions` when missing:
 
-- **FFmpeg** -> media rows. Install it system-wide, **or ask the agent to run `install_media_dependencies`** — it downloads pinned builds into the plugin cache with sha512 integrity verification (about 80-140 MB, one time) from the `npmmirror.com` registry by default, with npmjs.org as fallback.
+- **FFmpeg** -> media rows. Install it system-wide (preferred for untrusted media), **or ask the agent to run `install_media_dependencies`** — it downloads pinned current builds (FFmpeg 6.1.1, ~56 MB total, one time) into the plugin cache, sha256-verified, from the npmmirror binary CDN with the GitHub release as fallback.
 - **LibreOffice** -> DOCX/PPTX/XLSX to PDF. `winget install TheDocumentFoundation.LibreOffice` / `brew install --cask libreoffice` / `apt install libreoffice`.
 - **Ghostscript** -> PDF compression in `optimize_file`.
 - **Python + pdf2docx** -> the experimental PDF to DOCX row (`pip install pdf2docx`).
@@ -143,7 +143,7 @@ Applied: two-pass x264: video 512k + audio 128k over 185.0s
 
 ### `install_media_dependencies`
 
-One-call media setup: downloads pinned `@ffmpeg-installer` / `@ffprobe-installer` builds into the plugin cache (`~/.dsh-file-convert/bin`), verifies the registry's sha512 integrity, and proves the binaries run before reporting success. Downloads default to the `npmmirror.com` mirror (npmjs.org fallback; pin another source with `registry`). System installs keep priority over the cache. Ask the user for consent first — it is a sizable download.
+One-call media setup: downloads pinned FFmpeg 6.1.1 static builds (ffmpeg + ffprobe) into the plugin cache (`~/.dsh-file-convert/bin`), verifies the pinned sha256, and proves the binaries run before reporting success. Served from the npmmirror binary CDN with the GitHub release as a byte-identical fallback. System installs keep priority over the cache. Ask the user for consent first — it is a sizable download.
 
 ### `install_ocr_dependencies`
 
@@ -160,6 +160,9 @@ All 26 conversions with their live availability on *this* machine — unavailabl
 | `quality` | `85` | Default JPEG/WebP quality (1–100) |
 | `dpi` | `150` | Default rasterization DPI for PDF inputs |
 | `timeoutMs` | `120000` | Cooperative timeout for one conversion |
+| `maxInputMb` | `2048` | Refuse inputs above this size (MB) |
+| `maxPdfPages` | `200` | Full-document PDF rasterization refuses more pages; use `pages` for larger documents |
+| `maxOutputPixels` | `16000000` | Clamp rasterized pixels per page (width × height) to this budget |
 | `batchMaxFiles` | `500` | Max files examined per `batch_convert` run; beyond it the summary reports what was skipped instead of silently capping |
 | `outputRoots` | `[]` | When non-empty, explicit `output` paths must resolve inside one of these directories (recommended for shared deployments; the default next-to-input output is always exempt) |
 | `ffmpegPath` / `ffprobePath` | - | Explicit binary paths when ffmpeg is not on PATH (common on Windows) |
@@ -203,6 +206,12 @@ npm run smoke     # end-to-end against lib/
 ```
 
 Add a conversion = add one capability row + implement it in a converter. Add a backend = implement the `Converter` interface and register it in `createRouter()`.
+
+## Fidelity & safety expectations
+
+- **Lossy by nature**: PDF→DOCX (experimental), OCR and office→PDF are reconstructions — expect layout and recognition differences. `inspect_file`'s `likelyScanned` flag tells you when OCR is the right tool, and results carry warnings.
+- **Cached ffmpeg builds**: the download convenience installs pinned sha256-verified FFmpeg 6.1.1 static builds. For untrusted media, a current system FFmpeg takes priority — prefer it in security-sensitive setups.
+- **Not a sandbox**: `outputRoots` resolves symlinks and resource limits (`maxInputMb`, `maxPdfPages`, `maxOutputPixels`, `batchMaxFiles`) cap runaway jobs, but the default next-to-input output is intentionally exempt from roots, and an agent that may write files can always write somewhere. For hostile multi-tenant use, add OS-level isolation on top.
 
 ## Roadmap
 

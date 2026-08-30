@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [0.4.0] - 2026-08-30
 
+### Changed
+
+- Windows ffmpeg/ffprobe downloads now install pinned, sha256-verified FFmpeg 6.1.1 static builds (ffmpeg-static, npmmirror binary CDN with a byte-identical GitHub fallback) instead of the 2018-era FFmpeg 4.1 npm packages; a current system ffmpeg keeps priority for untrusted media.
+- `outputRoots` resolves symlinks (real-path) before confinement, and `isSameFile` detects symlink aliases of the input.
+- Resource limits are configurable and enforced: `maxInputMb` (default 2048), `maxPdfPages` (default 200, applies to implicit full-document rasterization; explicit `pages` override it) and `maxOutputPixels` (default 16 MP, clamped per page with a warning).
+
 ### Added
 
 - `pages` option for PDF conversions (`convert_file`, `batch_convert`): select pages with ranges like `1-3,5,8-10`; outputs keep their real page numbers (`doc-3.png`), text joins the selected pages.

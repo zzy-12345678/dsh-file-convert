@@ -42,6 +42,9 @@ export function createRouter(defaults?: Partial<RouterDefaults>): ConversionRout
     timeoutMs: defaults?.timeoutMs ?? 120_000,
     outputRoots: defaults?.outputRoots,
     binaryOverrides: overrides,
+    maxInputBytes: defaults?.maxInputBytes,
+    maxPdfPages: defaults?.maxPdfPages,
+    maxOutputPixels: defaults?.maxOutputPixels,
   })
   router.register(new ImageConverter())
   router.register(new PdfConverter(resolve))

@@ -7,6 +7,7 @@ import { createInspectFileTool } from './tools/inspect-file.js'
 import { createListConversionsTool } from './tools/list-conversions.js'
 import { createOptimizeFileTool } from './tools/optimize-file.js'
 import { createInstallMediaTool } from './tools/install-media.js'
+import { createInstallOcrTool } from './tools/install-ocr.js'
 
 export { Config } from './config.js'
 
@@ -43,8 +44,9 @@ export function apply(ctx: Context, config: ConvertConfig) {
   ctx.tools.register(createListConversionsTool(router, logger))
   ctx.tools.register(createOptimizeFileTool(router, config, logger))
   ctx.tools.register(createInstallMediaTool(config, logger))
+  ctx.tools.register(createInstallOcrTool(config, logger))
 
-  logger.info('dsh-file-convert loaded: 6 tools registered (26 conversions; media via install_media_dependencies, office via LibreOffice)')
+  logger.info('dsh-file-convert loaded: 7 tools registered (26 conversions; media/ocr dependencies install on request)')
 }
 
 function isLogger(value: unknown): value is Logger {

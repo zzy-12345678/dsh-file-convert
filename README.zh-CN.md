@@ -8,7 +8,7 @@
 
 ## 为什么做这个
 
-Agent 日常需要各种格式转换："把这个 PDF 转成图片"、"把这个 JSON 变成 YAML"、"把文件夹里所有 JPG 转成 WebP"。`dsh-file-convert` 提供六个专用 tool，背后是久经考验的本地库，你只需用自然语言提需求。
+Agent 日常需要各种格式转换："把这个 PDF 转成图片"、"把这个 JSON 变成 YAML"、"把文件夹里所有 JPG 转成 WebP"。`dsh-file-convert` 提供七个专用 tool，背后是久经考验的本地库，你只需用自然语言提需求。
 
 - ✅ **本地执行** —— 文件不出机器
 - ✅ **不要 API Key、不要服务器、不耗转换 Token**
@@ -39,7 +39,7 @@ Agent 日常需要各种格式转换："把这个 PDF 转成图片"、"把这个
 - **LibreOffice** -> DOCX/PPTX/XLSX 转 PDF。`winget install TheDocumentFoundation.LibreOffice` / `brew install --cask libreoffice` / `apt install libreoffice`。
 - **Ghostscript** -> `optimize_file` 的 PDF 压缩。
 - **Python + pdf2docx** -> 实验性的 PDF 转 DOCX（`pip install pdf2docx`）。
-- **Tesseract**（可选）-> 更快的扫描件 OCR；不装则用内置 tesseract.js（`winget install UB-Mannheim.TesseractOCR`，记得勾选 chi_sim 语言组件）。
+- **Tesseract**（可选）-> 更快的扫描件 OCR；不装则用内置 tesseract.js，其语言数据通过 `install_ocr_dependencies` 显式下载（`winget install UB-Mannheim.TesseractOCR`，记得勾选 chi_sim 语言组件）。
 
 ## 安装
 
@@ -57,9 +57,9 @@ cd dsh-file-convert && npm install && npm run build
 dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 ```
 
-重启 DSH（`dsh web` 或你的常规入口）后，六个 tool 自动出现。
+重启 DSH（`dsh web` 或你的常规入口）后，七个 tool 自动出现。
 
-## 六个 Tool
+## 七个 Tool
 
 ### `convert_file` —— 单文件转换
 
@@ -69,7 +69,7 @@ dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 
 - 默认输出到源文件同目录、同名换后缀。
 - 多页 PDF 会为每一页输出 `<文件名>-<页码>.<后缀>`；`pages: "1-3,5"` 选择页码（输出保留真实页码，TXT 只拼接所选页）。
-- 扫描件 PDF → TXT：`ocr: true`（可选 `ocr_lang`，默认 `chi_sim+eng`）对渲染页面做识别，而不是读文本层。引擎优先本机 Tesseract CLI，其次插件内置的 tesseract.js（语言数据首次使用时缓存到插件目录）。
+- 扫描件 PDF → TXT：`ocr: true`（可选 `ocr_lang`，默认 `chi_sim+eng`）对渲染页面做识别，而不是读文本层。引擎优先本机 Tesseract CLI，其次插件内置的 tesseract.js（语言数据不会随转换隐式下载——先让 Agent 跑 `install_ocr_dependencies`，约每种语言 10-30 MB）。
 - 输出文件已存在时默认拒绝，需显式 `overwrite: true`。
 - 可选参数：`output`、`overwrite`、`quality`（1–100）、`dpi`（PDF/SVG 光栅化）、`pages`、`ocr`、`ocr_lang`。
 
@@ -110,6 +110,10 @@ PDF 走 Ghostscript 三档预设（printer/ebook/screen）自动迭代：某档�
 
 默认从 `npmmirror.com` 镜像下载固定版本的 `@ffmpeg-installer` / `@ffprobe-installer` 二进制到插件缓存（`~/.dsh-file-convert/bin`），校验 sha512 完整性，并真实执行一次二进制确认可用后才报告成功（npmjs.org 自动回退，`registry` 参数可指定其它源）。系统安装的 ffmpeg 优先于缓存。体积可观，调用前请先征得用户同意。
 
+### `install_ocr_dependencies` —— 一键补齐 OCR 语言包
+
+把 tesseract.js 的语言数据（默认 `chi_sim+eng`，约每种语言 10-30 MB）下载进插件缓存（`~/.dsh-file-convert/tessdata`），让 `ocr: true` 在没有本机 Tesseract 时也能工作。已装本机 Tesseract 或语言包已缓存时跳过。体积可观，调用前请先征得用户同意——转换路径绝不隐式下载语言数据。
+
 ### `list_conversions` —— 当前机器的能力清单
 
 列出全部 26 种转换在当前机器上的实时可用状态；某项不可用时，明确指出缺哪个外部工具并给出安装提示。图片/PDF/数据类开箱即用，音视频、Office、PDF 压缩依赖可选工具（媒体依赖还能由 Agent 经 `install_media_dependencies` 自动补齐）。
@@ -137,7 +141,7 @@ PDF 走 Ghostscript 三档预设（printer/ebook/screen）自动迭代：某档�
      （薄胶水层：                     （不 import DSH）       可独立测试
       name/inject/apply、                 │
       Config schema、               ConversionRouter
-      4 个 tool 注册）                    │
+      7 个 tool 注册）                    │
                        ┌─────────────────┼─────────────────┐
                        ↓                 ↓                 ↓
                  ImageConverter     PdfConverter      DataConverter

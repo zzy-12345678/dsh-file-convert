@@ -8,6 +8,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - `pages` option for PDF conversions (`convert_file`, `batch_convert`): select pages with ranges like `1-3,5,8-10`; outputs keep their real page numbers (`doc-3.png`), text joins the selected pages.
 - OCR for PDF → TXT: `ocr: true` (optionally `ocr_lang`, default `chi_sim+eng`) rasterizes the pages and recognizes them. Engine priority: a locally installed Tesseract CLI, then the bundled tesseract.js (language data downloads into the plugin cache on first use). Intended for scanned PDFs — `inspect_file` flags those via `likelyScanned`.
+- `install_ocr_dependencies`: explicit download of tesseract.js language data (~10-30 MB per language) into the plugin cache. Conversions never download language data implicitly — without a cached pack they fail with guidance, and a local Tesseract missing a language reads as `missing_dependency` too.
 
 ## [0.3.0] - 2026-08-30
 

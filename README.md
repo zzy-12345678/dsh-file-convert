@@ -8,7 +8,7 @@ Convert images, PDFs and data files directly inside your DSH agent sessions — 
 
 ## Why
 
-Agents constantly need file conversions: "turn this PDF into images", "give me that JSON as YAML", "convert all JPGs in this folder to WebP". Instead of shelling out or pasting data around, `dsh-file-convert` gives your agent six purpose-built tools backed by battle-tested local libraries.
+Agents constantly need file conversions: "turn this PDF into images", "give me that JSON as YAML", "convert all JPGs in this folder to WebP". Instead of shelling out or pasting data around, `dsh-file-convert` gives your agent seven purpose-built tools backed by battle-tested local libraries.
 
 - ✅ **Local execution** — files never leave the machine
 - ✅ **No API key, no server, no conversion tokens**
@@ -39,7 +39,7 @@ Agents constantly need file conversions: "turn this PDF into images", "give me t
 - **LibreOffice** -> DOCX/PPTX/XLSX to PDF. `winget install TheDocumentFoundation.LibreOffice` / `brew install --cask libreoffice` / `apt install libreoffice`.
 - **Ghostscript** -> PDF compression in `optimize_file`.
 - **Python + pdf2docx** -> the experimental PDF to DOCX row (`pip install pdf2docx`).
-- **Tesseract** (optional) -> faster OCR for scanned PDFs; without it the bundled tesseract.js is used (`winget install UB-Mannheim.TesseractOCR`).
+- **Tesseract** (optional) -> faster OCR for scanned PDFs; without it the bundled tesseract.js is used and its language data is fetched explicitly via `install_ocr_dependencies` (`winget install UB-Mannheim.TesseractOCR`).
 
 ## Install
 
@@ -57,9 +57,9 @@ cd dsh-file-convert && npm install && npm run build
 dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 ```
 
-Then restart DSH (`dsh web` or your usual entry point). All six tools appear automatically.
+Then restart DSH (`dsh web` or your usual entry point). All seven tools appear automatically.
 
-## The six tools
+## The seven tools
 
 ### `convert_file`
 
@@ -76,7 +76,7 @@ Converted: /tmp/report.pdf (pdf) -> /tmp/report.png (png)
 
 - Default output: next to the input file, same base name, new extension.
 - Multi-page PDFs produce `<name>-<page>.<ext>` for every page; `pages: "1-3,5"` selects pages (outputs keep their real page numbers, text joins only the selection).
-- Scanned PDFs → TXT: `ocr: true` (optionally `ocr_lang`, default `chi_sim+eng`) recognizes the rendered pages instead of the text layer. Engine priority: a local Tesseract CLI, then the bundled tesseract.js (language data caches in the plugin directory on first use).
+- Scanned PDFs → TXT: `ocr: true` (optionally `ocr_lang`, default `chi_sim+eng`) recognizes the rendered pages instead of the text layer. Engine priority: a local Tesseract CLI, then the bundled tesseract.js (whose language data is never downloaded implicitly — run `install_ocr_dependencies` first, about 10-30 MB per language).
 - Existing outputs are refused unless `overwrite: true`.
 - Options: `output`, `overwrite`, `quality` (1–100), `dpi` (PDF/SVG rasterization), `pages`, `ocr`, `ocr_lang`.
 
@@ -134,6 +134,10 @@ Applied: two-pass x264: video 512k + audio 128k over 185.0s
 
 One-call media setup: downloads pinned `@ffmpeg-installer` / `@ffprobe-installer` builds into the plugin cache (`~/.dsh-file-convert/bin`), verifies the registry's sha512 integrity, and proves the binaries run before reporting success. Downloads default to the `npmmirror.com` mirror (npmjs.org fallback; pin another source with `registry`). System installs keep priority over the cache. Ask the user for consent first — it is a sizable download.
 
+### `install_ocr_dependencies`
+
+Downloads the tesseract.js language data (about 10-30 MB per language, `chi_sim+eng` by default) into the plugin cache, so `ocr: true` works without a local Tesseract. Skips when a local Tesseract CLI is installed or the data is already cached. Ask the user for consent first — conversions never download language data implicitly.
+
 ### `list_conversions`
 
 All 26 conversions with their live availability on *this* machine — unavailable rows name the missing tool and how to install it. Images, PDF and data rows are usable out of the box; media, office and PDF-compression rows depend on the optional tools (media can even be set up by the agent via `install_media_dependencies`).
@@ -161,7 +165,7 @@ All 26 conversions with their live availability on *this* machine — unavailabl
      (thin DSH glue:                (no DSH imports)       testable standalone
       name/inject/apply,                 │
       Config schema,                ConversionRouter
-      4 tool registrations)              │
+      7 tool registrations)              │
                        ┌─────────────────┼─────────────────┐
                        ↓                 ↓                 ↓
                  ImageConverter     PdfConverter      DataConverter

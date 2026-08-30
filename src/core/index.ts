@@ -14,7 +14,7 @@ export { DataConverter } from './converters/data.js'
 export { MediaConverter, FFMPEG, FFPROBE } from './converters/media.js'
 export { OfficeConverter, PdfToDocxConverter, SOFFICE, PYTHON_PDF2DOCX } from './converters/office.js'
 export { GHOSTSCRIPT } from './optimizers.js'
-export { TESSERACT, resolveOcrEngine, type OcrEngine } from './ocr.js'
+export { TESSERACT, OCR_LANGUAGE_DATA, ocrLanguagesCached, installOcrLanguages, tessdataDir, resolveOcrEngine, type OcrEngine } from './ocr.js'
 export { parsePageRange, PageRangeError } from './utils/pages.js'
 export { optimizeFile, type OptimizeResult } from './optimizers.js'
 

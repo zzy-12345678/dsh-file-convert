@@ -14,6 +14,31 @@ const tesseractPath = process.env.DSH_TEST_TESSERACT
 const describeIfTesseract = tesseractPath ? describe : describe.skip
 const NULL_LOGGER = { debug() {}, info() {}, warn() {}, error() {} }
 
+describe('ocr gating (no implicit downloads)', () => {
+  const router = createRouter()
+
+  it('fails with guidance when the bundled engine lacks cached language data', async () => {
+    // 'jpn' is not cached anywhere by the test suite, so the gate is
+    // deterministic regardless of chi_sim/eng state on the machine.
+    const dir = await tmpDir()
+    const input = await writePdf(dir, 'scan.pdf', 'OCR gating check', 1)
+    const output = path.join(dir, 'out.txt')
+
+    const result = await router.convertFile(
+      { input, outputFormat: 'txt', output, ocr: true, ocrLang: 'jpn' },
+      { logger: NULL_LOGGER },
+    )
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.code).toBe('missing_dependency')
+      expect(result.error.message).toContain("'jpn'")
+      // On a machine with a local Tesseract this comes from the CLI language
+      // check; otherwise from the tesseract.js cache gate.
+      expect(result.error.hint).toMatch(/install_ocr_dependencies|traineddata/)
+    }
+  })
+})
+
 describeIfTesseract('ocr (pdf -> txt via local tesseract)', () => {
   const router = createRouter({ binaryOverrides: { tesseractPath } })
 

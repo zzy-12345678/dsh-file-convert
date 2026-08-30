@@ -8,7 +8,7 @@ import { createCanvas } from '@napi-rs/canvas'
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { convertError } from '../errors.js'
 import { PageRangeError, parsePageRange } from '../utils/pages.js'
-import { TESSERACT, resolveOcrEngine } from '../ocr.js'
+import { OcrLanguageMissingError, OCR_LANGUAGE_DATA, TESSERACT, ocrLanguagesCached, resolveOcrEngine } from '../ocr.js'
 import type {
   BinaryDependency,
   ConvertContext,
@@ -213,6 +213,15 @@ export class PdfConverter implements Converter {
           hint: `Install hint (${process.platform}): ${TESSERACT.installHint[platformKey()]} - or reinstall the plugin so its bundled tesseract.js fallback is present.`,
         }))
       }
+      const ocrLang = req.options.ocrLang ?? 'chi_sim+eng'
+      // The bundled engine needs language data that is NOT downloaded
+      // implicitly: without a cached pack we fail with guidance instead.
+      if (engine.name === 'tesseract.js' && !(await ocrLanguagesCached(ocrLang))) {
+        return failErr(req, convertError('missing_dependency', `OCR language data for '${ocrLang}' is not cached yet.`, {
+          missing: [OCR_LANGUAGE_DATA],
+          hint: 'Ask the agent to run install_ocr_dependencies (downloads about 10-30 MB per language into the plugin cache), or install a local Tesseract CLI and set tesseractPath if needed.',
+        }))
+      }
       if (pageTexts.some((t) => t.trim().length > 0)) {
         warnings.push('A text layer was detected; OCR was used anyway because ocr: true.')
       }
@@ -226,12 +235,19 @@ export class PdfConverter implements Converter {
         const page = await doc.getPage(n)
         try {
           const png = await renderPage(page, scale, { to: 'png', quality: 100 })
-          ocrTexts.push((await engine.recognizePng(png, req.options.ocrLang ?? 'chi_sim+eng', ctx)).trim())
+          ocrTexts.push((await engine.recognizePng(png, ocrLang, ctx)).trim())
+        } catch (err) {
+          if (err instanceof OcrLanguageMissingError) {
+            return failErr(req, convertError('missing_dependency', `The local Tesseract is missing language data for '${ocrLang}'.`, {
+              hint: `Install the '${ocrLang}' traineddata for your Tesseract, or pick an ocr_lang it provides.`,
+            }))
+          }
+          throw err
         } finally {
           page.cleanup()
         }
       }
-      warnings.push(`OCR via ${engine.name} (${req.options.ocrLang ?? 'chi_sim+eng'}); quality depends on scan quality.`)
+      warnings.push(`OCR via ${engine.name} (${ocrLang}); quality depends on scan quality.`)
       pageTexts.length = 0
       pageTexts.push(...ocrTexts)
     } else if (pageTexts.every((t) => t.trim().length === 0)) {

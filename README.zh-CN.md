@@ -129,7 +129,7 @@ PDF 走 Ghostscript 三档预设（printer/ebook/screen）自动迭代：某档�
 
 下载固定的 FFmpeg 6.1.1 静态构建（ffmpeg + ffprobe 两个 ~28 MB 文件）到插件缓存（`~/.dsh-file-convert/bin`），校验钉死的 sha256，并真实执行一次二进制确认可用后才报告成功。npmmirror 二进制 CDN 优先，GitHub release 为字节一致的回退源。系统安装的 ffmpeg 优先于缓存。体积可观，调用前请先征得用户同意。
 
-默认从 `npmmirror.com` 镜像下载固定版本的 `@ffmpeg-installer` / `@ffprobe-installer` 二进制到插件缓存（`~/.dsh-file-convert/bin`），校验 sha512 完整性，并真实执行一次二进制确认可用后才报告成功（npmjs.org 自动回退，`registry` 参数可指定其它源）。系统安装的 ffmpeg 优先于缓存。体积可观，调用前请先征得用户同意。
+下载钉死 sha256 的 FFmpeg 6.1.1 静态构建（ffmpeg + ffprobe，各 ~28 MB）到插件缓存（`~/.dsh-file-convert/bin`），并真实执行一次二进制确认可用后才报告成功。npmmirror 二进制 CDN 优先，GitHub release 为字节一致的回退源。系统安装的 ffmpeg 优先于缓存。体积可观，调用前请先征得用户同意。
 
 ### `install_ocr_dependencies` —— 一键补齐 OCR 语言包
 
@@ -149,6 +149,8 @@ PDF 走 Ghostscript 三档预设（printer/ebook/screen）自动迭代：某档�
 | `maxInputMb` | `2048` | 拒绝超过此大小（MB）的输入 |
 | `maxPdfPages` | `200` | 整本 PDF 光栅化超过此页数即拒绝；更大的文档请用 `pages` 选择 |
 | `maxOutputPixels` | `16000000` | 每页光栅化像素（宽 × 高）钳制到此预算 |
+
+**限制覆盖范围**：`maxInputMb` 作用于 convert / batch / inspect / optimize 全部入口；`maxPdfPages` 作用于 PDF 光栅化与文本提取（隐式整本与显式 `pages` 选择都受限）；`maxOutputPixels` 作用于 PDF 光栅化、OCR 渲染和 SVG 光栅化；`timeoutMs` 对所有转换真取消（超时会中止底层工作，不只是提前返回）。
 | `batchMaxFiles` | `500` | 每次 `batch_convert` 最多检查的文件数；超出时会在结果里明确报告跳过了多少，而不是静默截断 |
 | `outputRoots` | `[]` | 非空时，显式指定的 `output` 路径必须落在这些目录之内（共享部署建议开启；默认写到输入文件旁的输出不受限） |
 | `ffmpegPath` / `ffprobePath` | - | ffmpeg 不在 PATH 时（Windows 常见）手动指定二进制路径 |
@@ -187,7 +189,7 @@ PDF 走 Ghostscript 三档预设（printer/ebook/screen）自动迭代：某档�
 ```sh
 npm install
 npm run build     # tsc -> lib/
-npm test          # vitest，31 个测试
+npm test          # vitest，63 项测试（另有个位数按环境门控的套件）
 npm run smoke     # 针对 lib/ 的端到端冒烟测试
 ```
 
@@ -198,6 +200,17 @@ npm run smoke     # 针对 lib/ 的端到端冒烟测试
 - **天然有损**：PDF→DOCX（实验性）、OCR、office→PDF 都是重建——版式和识别误差不可避免。`inspect_file` 的 `likelyScanned` 标记帮你判断何时该用 OCR，结果里会带警告。
 - **缓存版 ffmpeg**：便捷下载安装的是钉死 sha256 的 FFmpeg 6.1.1 静态构建。处理不可信媒体时，新版系统 FFmpeg 优先——安全敏感场景请优先系统安装。
 - **不是沙箱**：`outputRoots` 会解析符号链接，资源上限（`maxInputMb`、`maxPdfPages`、`maxOutputPixels`、`batchMaxFiles`）能拦住失控任务，但默认"写到输入文件旁"的输出有意不受 roots 约束，且能写文件的 Agent 总能找到地方写。敌对多租户场景请在操作系统层再加隔离。
+
+## 兼容性
+
+| 组件 | 已验证版本 |
+| --- | --- |
+| DeepSeek Harness | 0.1.1-rc.2 |
+| @deepseek-ai/dsh-tools | 0.0.1-rc.1 |
+| @deepseek-ai/cordis | 4.0.1 |
+| Node.js | ≥ 20（CI 覆盖 22） |
+
+DSH 仍处于 developer preview，API 可能变化——插件把 DSH 依赖隔离在薄胶水层，适配成本被刻意压低。
 
 ## Roadmap
 

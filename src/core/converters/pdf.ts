@@ -8,6 +8,7 @@ import { createCanvas } from '@napi-rs/canvas'
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { convertError } from '../errors.js'
 import { PageRangeError, parsePageRange } from '../utils/pages.js'
+import { writeFileAtomic } from '../utils/write-file.js'
 import { OcrLanguageMissingError, OCR_LANGUAGE_DATA, TESSERACT, ocrLanguagesCached, resolveOcrEngine } from '../ocr.js'
 import type {
   BinaryDependency,
@@ -138,6 +139,11 @@ export class PdfConverter implements Converter {
         hint: `Use pages (e.g. '1-${maxPdfPages}') to select, or raise 'maxPdfPages' in the plugin config.`,
       }))
     }
+    if (explicitSelection && maxPdfPages && selected.length > maxPdfPages) {
+      return failErr(req, convertError('invalid_input', `${selected.length} pages selected, above the ${maxPdfPages}-page rasterization limit.`, {
+        hint: `Narrow the pages selection or raise 'maxPdfPages' in the plugin config.`,
+      }))
+    }
     const scale = (req.options.dpi ?? 150) / 72 // PDFs have no intrinsic pixel size; 150 is a sane default.
     const maxOutputPixels = ctx.limits?.maxOutputPixels
     let scaleReduced = false
@@ -171,9 +177,13 @@ export class PdfConverter implements Converter {
           to: req.to as 'png' | 'jpg',
         })
         const out = selected.length === 1 ? req.output : withPageNumber(req.output, n, pad)
-        await fs.writeFile(out, buffer)
+        await writeFileAtomic(out, buffer)
         bytesOut += buffer.byteLength
         outputs.push(out)
+      } catch (err) {
+        // all-or-nothing: a failed page removes the pages already written
+        for (const written of outputs) await fs.rm(written, { force: true }).catch(() => undefined)
+        throw err
       } finally {
         page.cleanup()
       }
@@ -210,7 +220,19 @@ export class PdfConverter implements Converter {
     started: number,
   ): Promise<ConvertResult> {
     const totalPages = doc.numPages
+    const explicitSelection = Boolean(req.options.pages)
     const selected = req.options.pages ? parsePageRange(req.options.pages, totalPages) : pageRange(totalPages)
+    const maxPdfPages = ctx.limits?.maxPdfPages
+    if (!explicitSelection && maxPdfPages && totalPages > maxPdfPages) {
+      return failErr(req, convertError('invalid_input', `PDF has ${totalPages} pages, above the ${maxPdfPages}-page text-extraction limit.`, {
+        hint: `Use pages (e.g. '1-${maxPdfPages}') to select, or raise 'maxPdfPages' in the plugin config.`,
+      }))
+    }
+    if (explicitSelection && maxPdfPages && selected.length > maxPdfPages) {
+      return failErr(req, convertError('invalid_input', `${selected.length} pages selected, above the ${maxPdfPages}-page text-extraction limit.`, {
+        hint: `Narrow the pages selection or raise 'maxPdfPages' in the plugin config.`,
+      }))
+    }
     const warnings: string[] = []
 
     const pageTexts: string[] = []
@@ -252,6 +274,7 @@ export class PdfConverter implements Converter {
       }
       // OCR needs legible pixels: default to a higher density than rasterization.
       const scale = Math.max((req.options.dpi ?? 200) / 72, 200 / 72)
+      const maxOutputPixels = ctx.limits?.maxOutputPixels
       const ocrTexts: string[] = []
       for (const n of selected) {
         if (ctx.signal?.aborted) {
@@ -259,7 +282,18 @@ export class PdfConverter implements Converter {
         }
         const page = await doc.getPage(n)
         try {
-          const png = await renderPage(page, scale, { to: 'png', quality: 100 })
+          let renderScale = scale
+          if (maxOutputPixels) {
+            const viewport = page.getViewport({ scale })
+            const pixels = viewport.width * viewport.height
+            if (pixels > maxOutputPixels) {
+              // Recognition quality suffers on tiny rasters, so clamp gently
+              // (2x the pixel budget) and say so.
+              renderScale = scale * Math.sqrt((maxOutputPixels * 2) / pixels)
+              warnings.push('OCR render scale was reduced on some pages to fit the pixel budget; recognition quality may drop.')
+            }
+          }
+          const png = await renderPage(page, renderScale, { to: 'png', quality: 100 })
           ocrTexts.push((await engine.recognizePng(png, ocrLang, ctx)).trim())
         } catch (err) {
           if (err instanceof OcrLanguageMissingError) {
@@ -280,7 +314,7 @@ export class PdfConverter implements Converter {
     }
 
     const text = pageTexts.join('\n\n').replace(/\n{4,}/g, '\n\n\n') + '\n'
-    await fs.writeFile(req.output, text, 'utf8')
+    await writeFileAtomic(req.output, text)
     if (selected.length < totalPages) {
       warnings.push(`Converted page(s) ${selected.join(', ')} of ${totalPages} (pages option).`)
     }

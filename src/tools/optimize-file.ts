@@ -4,6 +4,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { BinaryDependency, ConversionRouter, Logger } from '../core/index.js'
 import { DetectError, optimizeFile, resolveBinary } from '../core/index.js'
 import { canonicalExtension } from '../core/index.js'
+import { isInsideAnyRoot } from '../core/index.js'
 import type { Config } from '../config.js'
 import { formatBytes, formatDuration, formatFailure } from '../format.js'
 
@@ -31,6 +32,13 @@ export function createOptimizeFileTool(router: ConversionRouter, config: Config,
     async execute(args, exec) {
       const targetBytes = Math.max(1, Math.round(args.target_size_mb * 1024 * 1024))
 
+      const inputStat = await fs.stat(args.input).catch(() => null)
+      if (!inputStat) throw new Error(`Input file not found: ${args.input}`)
+      const maxBytes = config.maxInputMb * 1024 * 1024
+      if (inputStat.size > maxBytes) {
+        throw new Error(`Input is ${Math.round(inputStat.size / 1048576).toLocaleString('en-US')} MB, above the ${config.maxInputMb} MB limit. Raise 'maxInputMb' in the plugin config if this file is intentional.`)
+      }
+
       let detection
       try {
         detection = (await router.detect(args.input)).detection
@@ -49,7 +57,7 @@ export function createOptimizeFileTool(router: ConversionRouter, config: Config,
       if (path.resolve(output) === path.resolve(args.input)) {
         throw new Error('Output path equals the input path; optimizing would destroy the source. Use the default -min output name or pick another path.')
       }
-      if (args.output !== undefined && config.outputRoots.length > 0 && !isInsideRoots(args.output, config.outputRoots)) {
+      if (args.output !== undefined && config.outputRoots.length > 0 && !(await isInsideAnyRoot(args.output, config.outputRoots))) {
         throw new Error(`Output path is outside every configured outputRoot (${config.outputRoots.join(', ')}).`)
       }
       if (args.overwrite !== true && (await exists(output))) {
@@ -78,16 +86,6 @@ export function createOptimizeFileTool(router: ConversionRouter, config: Config,
       for (const warning of result.warnings) lines.push(`Warning: ${warning}`)
       return lines.join('\n')
     },
-  })
-}
-
-function isInsideRoots(output: string, roots: string[]): boolean {
-  const resolved = path.resolve(output)
-  const candidate = process.platform === 'win32' ? resolved.replace(/\\/g, '/').toLowerCase() : resolved
-  return roots.some((root) => {
-    const rr = path.resolve(root)
-    const prefix = process.platform === 'win32' ? rr.replace(/\\/g, '/').toLowerCase() : rr
-    return candidate === prefix || candidate.startsWith(prefix.endsWith('/') ? prefix : prefix + '/')
   })
 }
 

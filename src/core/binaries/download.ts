@@ -7,7 +7,8 @@ import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { createWriteStream } from 'node:fs'
 import { execTool } from '../utils/exec.js'
-import { cachedBinaryPath } from './cache.js'
+import { writeFileAtomic } from '../utils/write-file.js'
+import { cachedBinaryPath, cacheDir } from './cache.js'
 import type { BinaryDependency } from '../types.js'
 
 /**
@@ -107,11 +108,25 @@ export async function downloadBinary(
       const gzPath = path.join(tmpDir, 'bin.gz')
       const bytes = await downloadTo(url, gzPath, opts.timeoutMs, opts.signal)
       verifyDigest(await fs.readFile(gzPath), entry.sha256)
-      await fs.mkdir(path.dirname(target), { recursive: true })
-      await fs.writeFile(target, gunzipSync(await fs.readFile(gzPath)))
-      if (process.platform !== 'win32') await fs.chmod(target, 0o755)
-      const { stdout, stderr } = await execTool(target, ['-version'], { timeoutMs: 15_000, signal: opts.signal })
+
+      // Prove the binary inside the scratch dir first, then publish it into
+      // the cache - a failed download never leaves a half-written target.
+      const candidate = path.join(tmpDir, 'bin')
+      await fs.writeFile(candidate, gunzipSync(await fs.readFile(gzPath)))
+      if (process.platform !== 'win32') await fs.chmod(candidate, 0o755)
+      const { stdout, stderr } = await execTool(candidate, ['-version'], { timeoutMs: 15_000, signal: opts.signal })
       const versionLine = (stdout || stderr).split(/\r?\n/, 1)[0]?.trim() ?? ''
+
+      await fs.mkdir(path.dirname(target), { recursive: true })
+      await fs.rename(candidate, target).catch(async () => {
+        await fs.copyFile(candidate, target)
+      })
+      await writeManifestEntry(dep.name, {
+        version: versionLine,
+        sha256: entry.sha256,
+        bytes,
+        installedAt: new Date().toISOString(),
+      })
       return { path: target, bytes, versionLine }
     } catch (err) {
       errors.push(`${new URL(url).host}: ${err instanceof Error ? err.message : String(err)}`)
@@ -121,6 +136,35 @@ export async function downloadBinary(
     }
   }
   throw new DownloadError('network', `All mirrors failed for ${dep.name}: ${errors.join(' | ')}`)
+}
+
+// ─── Cache manifest ─────────────────────────────────────────────────────────
+
+export interface CacheManifestEntry {
+  version: string
+  sha256: string
+  bytes: number
+  installedAt: string
+}
+
+export type CacheManifest = Record<string, CacheManifestEntry>
+
+export function manifestPath(): string {
+  return path.join(cacheDir(), 'manifest.json')
+}
+
+export async function readCacheManifest(): Promise<CacheManifest> {
+  try {
+    return JSON.parse(await fs.readFile(manifestPath(), 'utf8')) as CacheManifest
+  } catch {
+    return {}
+  }
+}
+
+async function writeManifestEntry(name: string, entry: CacheManifestEntry): Promise<void> {
+  const manifest = await readCacheManifest()
+  manifest[name] = entry
+  await writeFileAtomic(manifestPath(), JSON.stringify(manifest, null, 2))
 }
 
 async function downloadTo(url: string, target: string, timeoutMs: number, signal?: AbortSignal): Promise<number> {

@@ -169,6 +169,8 @@ All 26 conversions with their live availability on *this* machine — unavailabl
 | `maxInputMb` | `2048` | Refuse inputs above this size (MB) |
 | `maxPdfPages` | `200` | Full-document PDF rasterization refuses more pages; use `pages` for larger documents |
 | `maxOutputPixels` | `16000000` | Clamp rasterized pixels per page (width × height) to this budget |
+
+**Limit coverage**: `maxInputMb` applies to convert, batch, inspect and optimize alike; `maxPdfPages` applies to PDF rasterization and text extraction (both implicit full-document runs and explicit `pages` selections); `maxOutputPixels` applies to PDF rasterization, OCR rendering and SVG rasterization; `timeoutMs` truly cancels every conversion (the underlying work stops, it is not merely abandoned).
 | `batchMaxFiles` | `500` | Max files examined per `batch_convert` run; beyond it the summary reports what was skipped instead of silently capping |
 | `outputRoots` | `[]` | When non-empty, explicit `output` paths must resolve inside one of these directories (recommended for shared deployments; the default next-to-input output is always exempt) |
 | `ffmpegPath` / `ffprobePath` | - | Explicit binary paths when ffmpeg is not on PATH (common on Windows) |
@@ -207,7 +209,7 @@ All 26 conversions with their live availability on *this* machine — unavailabl
 ```sh
 npm install
 npm run build     # tsc -> lib/
-npm test          # vitest, 31 tests
+npm test          # vitest, 63 tests (plus a few environment-gated suites)
 npm run smoke     # end-to-end against lib/
 ```
 
@@ -218,6 +220,17 @@ Add a conversion = add one capability row + implement it in a converter. Add a b
 - **Lossy by nature**: PDF→DOCX (experimental), OCR and office→PDF are reconstructions — expect layout and recognition differences. `inspect_file`'s `likelyScanned` flag tells you when OCR is the right tool, and results carry warnings.
 - **Cached ffmpeg builds**: the download convenience installs pinned sha256-verified FFmpeg 6.1.1 static builds. For untrusted media, a current system FFmpeg takes priority — prefer it in security-sensitive setups.
 - **Not a sandbox**: `outputRoots` resolves symlinks and resource limits (`maxInputMb`, `maxPdfPages`, `maxOutputPixels`, `batchMaxFiles`) cap runaway jobs, but the default next-to-input output is intentionally exempt from roots, and an agent that may write files can always write somewhere. For hostile multi-tenant use, add OS-level isolation on top.
+
+## Compatibility
+
+| Component | Verified version |
+| --- | --- |
+| DeepSeek Harness | 0.1.1-rc.2 |
+| @deepseek-ai/dsh-tools | 0.0.1-rc.1 |
+| @deepseek-ai/cordis | 4.0.1 |
+| Node.js | >= 20 (CI covers 22) |
+
+DSH is a developer preview and its APIs will move - the plugin keeps all DSH imports inside a thin glue layer so adapting stays cheap.
 
 ## Roadmap
 

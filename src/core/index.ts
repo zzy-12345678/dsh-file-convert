@@ -8,6 +8,8 @@ export { ConversionRouter, type RouterDefaults, type ConvertFileRequest, type Co
 export { detectFile, DetectError, type DetectOutcome } from './detect.js'
 export { resolveBinary } from './binary.js'
 export { defaultOutputPath, batchOutputPath } from './paths.js'
+export { isInsideAnyRoot, isInsideRoot, isSameFile, realPathBestEffort } from './utils/path-guard.js'
+export { writeFileAtomic } from './utils/write-file.js'
 export { ImageConverter } from './converters/image.js'
 export { PdfConverter } from './converters/pdf.js'
 export { DataConverter } from './converters/data.js'

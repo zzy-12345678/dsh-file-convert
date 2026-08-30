@@ -189,16 +189,30 @@ export class PdfToDocxConverter implements Converter {
       const bytesIn = (await fs.stat(req.input)).size
       // pdf2docx has no __main__ module and its console script may not be on
       // PATH - drive the library API directly through the resolved interpreter.
-      await execTool(
-        python,
-        [
-          '-c', 'import sys; from pdf2docx import parse; parse(sys.argv[1], sys.argv[2])',
-          req.input, req.output,
-        ],
-        { timeoutMs: ctx.timeoutMs, signal: ctx.signal },
+      // It writes its output directly, so use a scratch file in the output's
+      // own directory and only publish a complete document under the real name.
+      const scratch = path.join(
+        path.dirname(req.output),
+        `.${path.basename(req.output)}.${Date.now()}.tmp`,
       )
-      if (!(await exists(req.output))) {
-        return fail(req, convertError('conversion_failed', 'pdf2docx reported success but produced no file.'))
+      try {
+        await execTool(
+          python,
+          [
+            '-c', 'import sys; from pdf2docx import parse; parse(sys.argv[1], sys.argv[2])',
+            req.input, scratch,
+          ],
+          { timeoutMs: ctx.timeoutMs, signal: ctx.signal },
+        )
+        if (!(await exists(scratch))) {
+          return fail(req, convertError('conversion_failed', 'pdf2docx reported success but produced no file.'))
+        }
+        await fs.rename(scratch, req.output).catch(async () => {
+          await fs.copyFile(scratch, req.output)
+          await fs.rm(scratch, { force: true })
+        })
+      } finally {
+        await fs.rm(scratch, { force: true }).catch(() => undefined)
       }
       return {
         ok: true,

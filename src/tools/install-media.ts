@@ -1,7 +1,7 @@
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { Logger } from '../core/index.js'
 import { FFMPEG, FFPROBE, resolveBinary } from '../core/index.js'
-import { downloadBinary } from '../core/binaries/download.js'
+import { downloadBinary, readCacheManifest } from '../core/binaries/download.js'
 import type { Config } from '../config.js'
 import { formatBytes } from '../format.js'
 
@@ -34,10 +34,14 @@ export function createInstallMediaTool(config: Config, logger: Logger) {
       if (config.ffprobePath) overrides.ffprobePath = config.ffprobePath
 
       const lines: string[] = []
+      const manifest = await readCacheManifest()
       for (const dep of [FFMPEG, FFPROBE]) {
         const existing = await resolveBinary(dep, overrides, logger)
         if (existing && args.force !== true) {
           lines.push(`= ${dep.name}: already available at ${existing}`)
+          if (!manifest[dep.name]) {
+            lines.push(`~ ${dep.name}: the cached copy predates the manifest - run with force: true once to upgrade to a sha256-verified build`)
+          }
           continue
         }
         logger.info(`downloading ${dep.name} into the plugin cache...`)

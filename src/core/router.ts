@@ -5,6 +5,7 @@ import { formatCategory, FORMAT_IDS, parseFormatArg } from './formats.js'
 import { detectFile, DetectError, type DetectOutcome } from './detect.js'
 import { inspectFile } from './inspect.js'
 import { defaultOutputPath } from './paths.js'
+import { isInsideAnyRoot, isSameFile } from './utils/path-guard.js'
 import { resolveBinary } from './binary.js'
 import { FFPROBE } from './converters/media.js'
 import type {
@@ -202,7 +203,7 @@ export class ConversionRouter {
           }),
         }
       }
-      if (req.output !== undefined && !(await isInsideRoots(output, this.defaults.outputRoots))) {
+      if (req.output !== undefined && !(await isInsideAnyRoot(output, this.defaults.outputRoots))) {
         return {
           ok: false, input: req.input, from, to,
           error: convertError('invalid_input', `Output path ${output} is outside every configured outputRoot.`, {
@@ -232,18 +233,41 @@ export class ConversionRouter {
         ocrLang: req.ocrLang,
       }
       const request: ConvertRequest = { input: req.input, output, from, to, options }
+
+      // True cancellation: the timeout (or the caller) aborts an internal
+      // controller that converters actually observe, so work stops instead of
+      // being abandoned behind an already-returned promise.
+      const controller = new AbortController()
+      const onCallerAbort = () => controller.abort()
+      run.signal?.addEventListener('abort', onCallerAbort, { once: true })
       const ctx: ConvertContext = {
         logger: run.logger,
-        signal: run.signal,
+        signal: AbortSignal.any([controller.signal, ...(run.signal ? [run.signal] : [])]),
         timeoutMs: this.defaults.timeoutMs,
         limits: { maxPdfPages: this.defaults.maxPdfPages, maxOutputPixels: this.defaults.maxOutputPixels },
       }
 
-      const result = await withTimeout(converter.convert(request, ctx), ctx.timeoutMs, {
-        input: req.input, from, to,
-      })
-      if (result.ok) result.warnings.unshift(...warnings)
-      return result
+      let timer: NodeJS.Timeout | undefined
+      try {
+        const timeoutPromise = new Promise<ConvertResult>((resolve) => {
+          timer = setTimeout(() => {
+            controller.abort()
+            resolve({
+              ok: false,
+              input: req.input,
+              from,
+              to,
+              error: convertError('timeout', `Conversion exceeded ${Math.round(ctx.timeoutMs / 1000)}s and was cancelled.`),
+            })
+          }, ctx.timeoutMs)
+        })
+        const result = await Promise.race([converter.convert(request, ctx), timeoutPromise])
+        if (result.ok) result.warnings.unshift(...warnings)
+        return result
+      } finally {
+        clearTimeout(timer as NodeJS.Timeout | undefined)
+        run.signal?.removeEventListener('abort', onCallerAbort)
+      }
     } catch (err) {
       if (err instanceof DetectError) {
         return { ok: false, input: req.input, to, error: err.error }
@@ -258,6 +282,18 @@ export class ConversionRouter {
   }
 
   async inspect(input: string): Promise<InspectResult> {
+    const inputStat = await fs.stat(input).catch(() => null)
+    if (inputStat?.isDirectory()) {
+      throw new DetectError(convertError('invalid_input', `Input is a directory, not a file: ${input}`))
+    }
+    const maxInputBytes = this.defaults.maxInputBytes ?? 2 * 1024 ** 3
+    if (inputStat && inputStat.size > maxInputBytes) {
+      throw new DetectError(
+        convertError('invalid_input', `Input is ${Math.round(inputStat.size / 1048576).toLocaleString('en-US')} MB, above the ${Math.round(maxInputBytes / 1048576).toLocaleString('en-US')} MB limit for inspection.`, {
+          hint: "Raise 'maxInputMb' in the plugin config.",
+        }),
+      )
+    }
     const { detection } = await detectFile(input)
     const bytes = (await fs.stat(input)).size
     let media: Parameters<typeof inspectFile>[3]
@@ -278,52 +314,6 @@ const CATEGORY_RANK = new Map<FormatId, number>(
     .map((format, index) => [format, index]),
 )
 
-/**
- * realpath the deepest EXISTING ancestor of a path and rejoin the remainder:
- * symlinks anywhere in the existing part are resolved, which is what
- * outputRoots confinement needs (a symlink inside a root can point outside).
- */
-async function realPathBestEffort(p: string): Promise<string> {
-  let current = path.resolve(p)
-  const tail: string[] = []
-  for (;;) {
-    try {
-      return path.join(await fs.realpath(current), ...tail.reverse())
-    } catch {
-      /* segment does not exist yet - walk up */
-    }
-    const parent = path.dirname(current)
-    if (parent === current) return path.resolve(p)
-    tail.push(path.basename(current))
-    current = parent
-  }
-}
-
-async function isSameFile(a: string, b: string): Promise<boolean> {
-  const ra = await realPathBestEffort(a)
-  const rb = await realPathBestEffort(b)
-  if (ra === rb) return true
-  // Windows paths are case-insensitive; also fold / vs \.
-  return process.platform === 'win32' && ra.replace(/\\/g, '/').toLowerCase() === rb.replace(/\\/g, '/').toLowerCase()
-}
-
-async function isInsideRoots(output: string, roots: string[] | undefined): Promise<boolean> {
-  if (!roots || roots.length === 0) return true
-  const candidate = await realPathBestEffort(output)
-  const normalized = process.platform === 'win32' ? candidate.replace(/\\/g, '/').toLowerCase() : candidate
-  for (const root of roots) {
-    const prefix = await realPathBestEffort(path.resolve(root))
-    const normalizedPrefix = process.platform === 'win32' ? prefix.replace(/\\/g, '/').toLowerCase() : prefix
-    if (
-      normalized === normalizedPrefix ||
-      normalized.startsWith(normalizedPrefix.endsWith('/') ? normalizedPrefix : normalizedPrefix + '/')
-    ) {
-      return true
-    }
-  }
-  return false
-}
-
 async function missingDeps(converter: Converter, overrides: Record<string, string>) {
   const missing: import('./types.js').BinaryDependency[] = []
   for (const dep of converter.binaryDeps) {
@@ -342,31 +332,6 @@ async function exists(path: string): Promise<boolean> {
     return true
   } catch {
     return false
-  }
-}
-
-/** Cooperative deadline: long-running converters also observe ctx.signal. */
-async function withTimeout(
-  promise: Promise<ConvertResult>,
-  timeoutMs: number,
-  meta: { input: string; from: FormatId; to: FormatId },
-): Promise<ConvertResult> {
-  let timer: NodeJS.Timeout | undefined
-  const timeout = new Promise<ConvertResult>((resolve) => {
-    timer = setTimeout(() => {
-      resolve({
-        ok: false,
-        input: meta.input,
-        from: meta.from,
-        to: meta.to,
-        error: convertError('timeout', `Conversion exceeded ${Math.round(timeoutMs / 1000)}s and was abandoned.`),
-      })
-    }, timeoutMs)
-  })
-  try {
-    return await Promise.race([promise, timeout])
-  } finally {
-    clearTimeout(timer)
   }
 }
 

@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import { parse as csvParse } from 'csv-parse/sync'
 import { stringify as csvStringify } from 'csv-stringify/sync'
 import yaml from 'js-yaml'
+import { writeFileAtomic } from '../utils/write-file.js'
 import { convertError } from '../errors.js'
 import type {
   ConvertContext,
@@ -49,7 +50,7 @@ export class DataConverter implements Converter {
       const bytesIn = Buffer.byteLength(raw)
       const value = this.read(from, raw, req.options.delimiter)
       const text = this.write(to, value, req.options.indent)
-      await fs.writeFile(req.output, text, 'utf8')
+      await writeFileAtomic(req.output, text)
       return {
         ok: true,
         input: req.input,

@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises'
 import sharp, { type Sharp } from 'sharp'
+import { writeFileAtomic } from '../utils/write-file.js'
 import { convertError } from '../errors.js'
 import type {
   ConvertContext,
@@ -35,7 +36,20 @@ export class ImageConverter implements Converter {
       const bytesIn = (await fs.stat(req.input)).size
       // density only affects vector input (SVG): 72 renders at the SVG's own
       // pixel size; a higher dpi option upscales. Rasters ignore it.
-      const pipeline = sharp(req.input, { density: req.options.dpi ?? 72 })
+      // A hostile SVG can declare enormous dimensions - clamp the raster to
+      // the pixel budget before decoding.
+      let density = req.options.dpi ?? 72
+      const maxOutputPixels = ctx.limits?.maxOutputPixels
+      if (req.from === 'svg' && maxOutputPixels) {
+        const meta = await sharp(req.input).metadata()
+        const factor = density / 72
+        const pixels = (meta.width ?? 1000) * factor * ((meta.height ?? 1000) * factor)
+        if (pixels > maxOutputPixels) {
+          const shrink = Math.sqrt(maxOutputPixels / pixels)
+          density = Math.max(1, Math.floor(density * shrink))
+        }
+      }
+      const pipeline = sharp(req.input, { density })
       const { quality, background } = req.options
 
       let out: Sharp
@@ -49,8 +63,9 @@ export class ImageConverter implements Converter {
         out = pipeline.png()
       }
 
-      await out.toFile(req.output)
-      const bytesOut = (await fs.stat(req.output)).size
+      const buffer = await out.toBuffer()
+      await writeFileAtomic(req.output, buffer)
+      const bytesOut = buffer.length
       return {
         ok: true,
         input: req.input,

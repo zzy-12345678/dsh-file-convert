@@ -27,7 +27,7 @@ Agents constantly need file conversions: "turn this PDF into images", "give me t
 | JSON | YAML, CSV |
 | YAML | JSON, CSV |
 | DOCX, PPTX, XLSX | PDF |
-| PDF | PNG, JPG, TXT, DOCX (experimental) |
+| PDF | PNG, JPG, TXT, DOCX (experimental); TXT supports OCR for scanned PDFs |
 | MP4 | GIF, MP3 |
 | MOV | MP4 |
 | WAV | MP3 |
@@ -39,6 +39,7 @@ Agents constantly need file conversions: "turn this PDF into images", "give me t
 - **LibreOffice** -> DOCX/PPTX/XLSX to PDF. `winget install TheDocumentFoundation.LibreOffice` / `brew install --cask libreoffice` / `apt install libreoffice`.
 - **Ghostscript** -> PDF compression in `optimize_file`.
 - **Python + pdf2docx** -> the experimental PDF to DOCX row (`pip install pdf2docx`).
+- **Tesseract** (optional) -> faster OCR for scanned PDFs; without it the bundled tesseract.js is used (`winget install UB-Mannheim.TesseractOCR`).
 
 ## Install
 
@@ -74,9 +75,10 @@ Converted: /tmp/report.pdf (pdf) -> /tmp/report.png (png)
 ```
 
 - Default output: next to the input file, same base name, new extension.
-- Multi-page PDFs produce `<name>-<page>.<ext>` for every page.
+- Multi-page PDFs produce `<name>-<page>.<ext>` for every page; `pages: "1-3,5"` selects pages (outputs keep their real page numbers, text joins only the selection).
+- Scanned PDFs → TXT: `ocr: true` (optionally `ocr_lang`, default `chi_sim+eng`) recognizes the rendered pages instead of the text layer. Engine priority: a local Tesseract CLI, then the bundled tesseract.js (language data caches in the plugin directory on first use).
 - Existing outputs are refused unless `overwrite: true`.
-- Options: `output`, `overwrite`, `quality` (1–100), `dpi` (PDF/SVG rasterization).
+- Options: `output`, `overwrite`, `quality` (1–100), `dpi` (PDF/SVG rasterization), `pages`, `ocr`, `ocr_lang`.
 
 ### `batch_convert`
 
@@ -146,6 +148,7 @@ All 26 conversions with their live availability on *this* machine — unavailabl
 | `batchMaxFiles` | `500` | Max files examined per `batch_convert` run; beyond it the summary reports what was skipped instead of silently capping |
 | `outputRoots` | `[]` | When non-empty, explicit `output` paths must resolve inside one of these directories (recommended for shared deployments; the default next-to-input output is always exempt) |
 | `ffmpegPath` / `ffprobePath` | - | Explicit binary paths when ffmpeg is not on PATH (common on Windows) |
+| `sofficePath` / `ghostscriptPath` / `pythonPath` / `tesseractPath` | - | Explicit paths for the optional tools, overriding auto-detection |
 
 ## Architecture
 
@@ -190,7 +193,7 @@ Add a conversion = add one capability row + implement it in a converter. Add a b
 
 - ~~V0.2 — Media (FFmpeg)~~ **shipped**: MP4→GIF/MP3, WAV→MP3, MOV→MP4, plus `optimize_file` with target-size two-pass encoding.
 - ~~V0.3 — Office + PDF tooling~~ **shipped**: DOCX/PPTX/XLSX→PDF via LibreOffice, experimental PDF→DOCX via python pdf2docx, PDF compression via Ghostscript; on-demand dependency downloads with an automatic CN mirror.
-- Later: OCR for scanned PDFs, page-range selection, conversion chains (PPTX→PDF→PNG), video downscaling in `optimize_file`, resize/rotate image options.
+- Later: OCR → DOCX for scanned PDFs, conversion chains (PPTX→PDF→PNG), video downscaling in `optimize_file`, resize/rotate image options.
 
 ## License
 

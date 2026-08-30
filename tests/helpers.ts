@@ -43,11 +43,18 @@ export async function writeSvg(dir: string, name = 'sample.svg'): Promise<string
   return file
 }
 
-export async function writePdf(dir: string, name = 'sample.pdf', text = 'Hello dsh-file-convert', pages = 1): Promise<string> {
+export async function writePdf(
+  dir: string,
+  name = 'sample.pdf',
+  text = 'Hello dsh-file-convert',
+  pages = 1,
+  pageTexts?: string[],
+): Promise<string> {
   const pdf = await PDFDocument.create()
   for (let i = 0; i < pages; i++) {
     const page = pdf.addPage([220, 120])
-    page.drawText(text, { x: 20, y: 70, size: 14 })
+    const content = pageTexts?.[i] ?? `${text} (page ${i + 1})`
+    page.drawText(content, { x: 20, y: 70, size: 14 })
   }
   const file = path.join(dir, name)
   await fs.writeFile(file, await pdf.save())

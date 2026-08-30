@@ -1,7 +1,7 @@
 {
   "name": "dsh-file-convert",
-  "version": "0.1.0",
-  "description": "Local-first file conversion for DeepSeek Harness - images, PDF and data formats. No API keys, no uploads, no token cost.",
+  "version": "0.4.0",
+  "description": "Local-first file conversion for DeepSeek Harness - images, PDF, data, audio/video and office documents. No API keys, no uploads, no token cost.",
   "license": "MIT",
   "type": "module",
   "main": "./lib/index.js",
@@ -51,7 +51,8 @@
     "js-yaml": "^4.1.0",
     "pdfjs-dist": "^6.2.108",
     "sharp": "^0.35.4",
-    "tar": "^7.5.22"
+    "tar": "^7.5.22",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

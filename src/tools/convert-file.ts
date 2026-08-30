@@ -23,6 +23,20 @@ export function createConvertFileTool(router: ConversionRouter, config: Config, 
       overwrite: { type: 'boolean', description: 'Replace the output file if it exists. Default false.' },
       quality: { type: 'integer', description: 'JPEG/WebP quality 1-100 (default from plugin config, 85).' },
       dpi: { type: 'integer', description: 'Rasterization DPI for PDF/SVG inputs (default from plugin config, 150).' },
+      pages: {
+        type: 'string',
+        description:
+          "Page selection for PDF inputs, one-based and inclusive: '1-3,5,8-10'. Outputs keep their real page numbers. Applies to pdf -> png/jpg/txt.",
+      },
+      ocr: {
+        type: 'boolean',
+        description:
+          'OCR the pages instead of reading the text layer (pdf -> txt only). For scanned PDFs. Uses a local Tesseract when installed, otherwise the bundled tesseract.js (slower; downloads language data on first use).',
+      },
+      ocr_lang: {
+        type: 'string',
+        description: "OCR languages, '+'-separated. Default 'chi_sim+eng'.",
+      },
     },
     output: {
       schema: { type: 'string' },
@@ -39,6 +53,9 @@ export function createConvertFileTool(router: ConversionRouter, config: Config, 
           overwrite: args.overwrite,
           quality: args.quality,
           dpi: args.dpi,
+          pages: args.pages,
+          ocr: args.ocr,
+          ocrLang: args.ocr_lang,
         },
         { logger, signal: exec.signal },
       )

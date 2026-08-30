@@ -25,6 +25,8 @@ export interface Config {
   ghostscriptPath?: string
   /** Explicit python interpreter for the pdf2docx-based PDF → DOCX conversion. */
   pythonPath?: string
+  /** Explicit tesseract binary for OCR (falls back to bundled tesseract.js). */
+  tesseractPath?: string
 }
 
 export const Config: Schema<Config> = Schema.object({
@@ -38,4 +40,5 @@ export const Config: Schema<Config> = Schema.object({
   sofficePath: Schema.string().description('Explicit LibreOffice soffice binary path (overrides auto-detection).'),
   ghostscriptPath: Schema.string().description('Explicit Ghostscript binary path (overrides PATH lookup).'),
   pythonPath: Schema.string().description('Explicit python interpreter for the pdf2docx-based PDF → DOCX conversion.'),
+  tesseractPath: Schema.string().description('Explicit tesseract binary for OCR (falls back to bundled tesseract.js).'),
 })

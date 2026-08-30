@@ -33,6 +33,7 @@ export function apply(ctx: Context, config: ConvertConfig) {
       ...(config.sofficePath ? { sofficePath: config.sofficePath } : {}),
       ...(config.ghostscriptPath ? { ghostscriptPath: config.ghostscriptPath } : {}),
       ...(config.pythonPath ? { pythonPath: config.pythonPath } : {}),
+      ...(config.tesseractPath ? { tesseractPath: config.tesseractPath } : {}),
     },
   })
 

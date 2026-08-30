@@ -86,6 +86,12 @@ export interface ConvertOptions {
   indent?: number
   /** CSV delimiter. Default: sniffed from the first lines (, ; \t). */
   delimiter?: string
+  /** One-based inclusive page selection for PDF inputs, e.g. '1-3,5,8-10'. */
+  pages?: string
+  /** OCR pages instead of reading the text layer (PDF → TXT). */
+  ocr?: boolean
+  /** OCR languages, '+'-separated. Default 'chi_sim+eng'. */
+  ocrLang?: string
   /** Escape hatch for backend-specific options. */
   extra?: Record<string, unknown>
 }

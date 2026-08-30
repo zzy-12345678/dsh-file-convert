@@ -47,6 +47,12 @@ export interface ConvertFileRequest {
   overwrite?: boolean
   quality?: number
   dpi?: number
+  /** One-based inclusive page selection for PDF inputs, e.g. '1-3,5'. */
+  pages?: string
+  /** OCR the pages instead of reading the text layer (PDF → TXT). */
+  ocr?: boolean
+  /** OCR languages, '+'-separated. Default 'chi_sim+eng'. */
+  ocrLang?: string
 }
 
 export interface ConvertRunContext {
@@ -197,6 +203,9 @@ export class ConversionRouter {
         // (PDF rasterization vs SVG density), so converters apply their own.
         quality: req.quality ?? this.defaults.quality,
         dpi: req.dpi,
+        pages: req.pages,
+        ocr: req.ocr,
+        ocrLang: req.ocrLang,
       }
       const request: ConvertRequest = { input: req.input, output, from, to, options }
       const ctx: ConvertContext = {

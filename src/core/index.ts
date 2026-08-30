@@ -14,6 +14,8 @@ export { DataConverter } from './converters/data.js'
 export { MediaConverter, FFMPEG, FFPROBE } from './converters/media.js'
 export { OfficeConverter, PdfToDocxConverter, SOFFICE, PYTHON_PDF2DOCX } from './converters/office.js'
 export { GHOSTSCRIPT } from './optimizers.js'
+export { TESSERACT, resolveOcrEngine, type OcrEngine } from './ocr.js'
+export { parsePageRange, PageRangeError } from './utils/pages.js'
 export { optimizeFile, type OptimizeResult } from './optimizers.js'
 
 import { ConversionRouter, type RouterDefaults } from './router.js'
@@ -42,7 +44,7 @@ export function createRouter(defaults?: Partial<RouterDefaults>): ConversionRout
     binaryOverrides: overrides,
   })
   router.register(new ImageConverter())
-  router.register(new PdfConverter())
+  router.register(new PdfConverter(resolve))
   router.register(new DataConverter())
   router.register(new MediaConverter(resolve))
   router.register(new OfficeConverter(resolve))

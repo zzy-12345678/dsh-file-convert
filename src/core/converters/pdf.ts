@@ -7,7 +7,10 @@ import './pdf-env.js'
 import { createCanvas } from '@napi-rs/canvas'
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { convertError } from '../errors.js'
+import { PageRangeError, parsePageRange } from '../utils/pages.js'
+import { TESSERACT, resolveOcrEngine } from '../ocr.js'
 import type {
+  BinaryDependency,
   ConvertContext,
   ConvertRequest,
   ConvertResult,
@@ -79,6 +82,9 @@ export class PdfConverter implements Converter {
     { from: 'pdf', to: 'txt' },
   ]
 
+  /** Optional binary resolver, needed only for OCR (Tesseract). */
+  constructor(private readonly resolve?: (dep: BinaryDependency) => Promise<string | null>) {}
+
   async convert(req: ConvertRequest, ctx: ConvertContext): Promise<ConvertResult> {
     const started = Date.now()
     try {
@@ -97,6 +103,9 @@ export class PdfConverter implements Converter {
         await doc.cleanup().catch(() => undefined)
       }
     } catch (err) {
+      if (err instanceof PageRangeError) {
+        return { ok: false, input: req.input, from: req.from, to: req.to, error: err.error }
+      }
       return {
         ok: false,
         input: req.input,
@@ -109,7 +118,10 @@ export class PdfConverter implements Converter {
     }
   }
 
-  /** Multi-page PDFs produce `<base>-<n>.<ext>` files; a single page writes exactly `output`. */
+  /**
+   * Multi-page PDFs produce `<base>-<n>.<ext>` files named after the REAL page
+   * number; converting a single page (or a one-page PDF) writes exactly `output`.
+   */
   private async toImages(
     doc: PdfDocumentLike,
     req: ConvertRequest,
@@ -117,38 +129,38 @@ export class PdfConverter implements Converter {
     bytesIn: number,
     started: number,
   ): Promise<ConvertResult> {
-    const pages = doc.numPages
+    const totalPages = doc.numPages
+    const selected = req.options.pages ? parsePageRange(req.options.pages, totalPages) : pageRange(totalPages)
     const scale = (req.options.dpi ?? 150) / 72 // PDFs have no intrinsic pixel size; 150 is a sane default.
-    const pad = String(pages).length
+    const pad = String(totalPages).length
     const outputs: string[] = []
+    const warnings: string[] = []
     let bytesOut = 0
 
-    for (let n = 1; n <= pages; n++) {
+    for (const n of selected) {
       if (ctx.signal?.aborted) {
         return fail(req, 'cancelled', 'Conversion cancelled.')
       }
       const page = await doc.getPage(n)
       try {
-        const viewport = page.getViewport({ scale })
-        const width = Math.max(1, Math.ceil(viewport.width))
-        const height = Math.max(1, Math.ceil(viewport.height))
-        const canvas = createCanvas(width, height)
-        const cctx = canvas.getContext('2d')
-        if (req.to === 'jpg') {
-          // JPEG has no alpha; the pdf.js canvas starts transparent and would encode black.
-          cctx.fillStyle = req.options.background ?? '#ffffff'
-          cctx.fillRect(0, 0, width, height)
-        }
-        await page.render({ canvasContext: cctx, viewport }).promise
-        const buffer =
-          req.to === 'png' ? await canvas.encode('png') : await canvas.encode('jpeg', req.options.quality ?? 85)
-        const out = pages === 1 ? req.output : withPageNumber(req.output, n, pad)
+        const buffer = await renderPage(page, scale, {
+          background: req.to === 'jpg' ? req.options.background ?? '#ffffff' : undefined,
+          quality: req.options.quality ?? 85,
+          to: req.to as 'png' | 'jpg',
+        })
+        const out = selected.length === 1 ? req.output : withPageNumber(req.output, n, pad)
         await fs.writeFile(out, buffer)
         bytesOut += buffer.byteLength
         outputs.push(out)
       } finally {
         page.cleanup()
       }
+    }
+
+    if (selected.length < totalPages) {
+      warnings.push(`Converted page(s) ${selected.join(', ')} of ${totalPages} (pages option).`)
+    } else if (totalPages > 1) {
+      warnings.push(`PDF has ${totalPages} pages; wrote ${totalPages} files named <name>-<page>.${req.to}.`)
     }
 
     return {
@@ -161,10 +173,7 @@ export class PdfConverter implements Converter {
       bytesIn,
       bytesOut,
       durationMs: Date.now() - started,
-      warnings:
-        pages > 1
-          ? [`PDF has ${pages} pages; wrote ${pages} files named <name>-<page>.${req.to}.`]
-          : [],
+      warnings,
     }
   }
 
@@ -175,8 +184,12 @@ export class PdfConverter implements Converter {
     bytesIn: number,
     started: number,
   ): Promise<ConvertResult> {
+    const totalPages = doc.numPages
+    const selected = req.options.pages ? parsePageRange(req.options.pages, totalPages) : pageRange(totalPages)
+    const warnings: string[] = []
+
     const pageTexts: string[] = []
-    for (let n = 1; n <= doc.numPages; n++) {
+    for (const n of selected) {
       if (ctx.signal?.aborted) {
         return fail(req, 'cancelled', 'Conversion cancelled.')
       }
@@ -188,8 +201,48 @@ export class PdfConverter implements Converter {
         page.cleanup()
       }
     }
+
+    if (req.options.ocr === true) {
+      if (!this.resolve) {
+        return failErr(req, convertError('conversion_failed', 'OCR is unavailable in this build (no binary resolver).'))
+      }
+      const engine = await resolveOcrEngine(this.resolve, ctx.logger)
+      if (!engine) {
+        return failErr(req, convertError('missing_dependency', 'OCR was requested but no OCR engine is available.', {
+          missing: [TESSERACT],
+          hint: `Install hint (${process.platform}): ${TESSERACT.installHint[platformKey()]} - or reinstall the plugin so its bundled tesseract.js fallback is present.`,
+        }))
+      }
+      if (pageTexts.some((t) => t.trim().length > 0)) {
+        warnings.push('A text layer was detected; OCR was used anyway because ocr: true.')
+      }
+      // OCR needs legible pixels: default to a higher density than rasterization.
+      const scale = Math.max((req.options.dpi ?? 200) / 72, 200 / 72)
+      const ocrTexts: string[] = []
+      for (const n of selected) {
+        if (ctx.signal?.aborted) {
+          return fail(req, 'cancelled', 'Conversion cancelled.')
+        }
+        const page = await doc.getPage(n)
+        try {
+          const png = await renderPage(page, scale, { to: 'png', quality: 100 })
+          ocrTexts.push((await engine.recognizePng(png, req.options.ocrLang ?? 'chi_sim+eng', ctx)).trim())
+        } finally {
+          page.cleanup()
+        }
+      }
+      warnings.push(`OCR via ${engine.name} (${req.options.ocrLang ?? 'chi_sim+eng'}); quality depends on scan quality.`)
+      pageTexts.length = 0
+      pageTexts.push(...ocrTexts)
+    } else if (pageTexts.every((t) => t.trim().length === 0)) {
+      warnings.push('No extractable text found - this may be a scanned PDF. Re-run with ocr: true.')
+    }
+
     const text = pageTexts.join('\n\n').replace(/\n{4,}/g, '\n\n\n') + '\n'
     await fs.writeFile(req.output, text, 'utf8')
+    if (selected.length < totalPages) {
+      warnings.push(`Converted page(s) ${selected.join(', ')} of ${totalPages} (pages option).`)
+    }
     return {
       ok: true,
       input: req.input,
@@ -199,15 +252,44 @@ export class PdfConverter implements Converter {
       bytesIn,
       bytesOut: Buffer.byteLength(text),
       durationMs: Date.now() - started,
-      warnings: pageTexts.every((t) => t.trim().length === 0)
-        ? ['No extractable text found - this may be a scanned PDF.']
-        : [],
+      warnings,
     }
   }
 }
 
+function pageRange(totalPages: number): number[] {
+  return Array.from({ length: totalPages }, (_, i) => i + 1)
+}
+
+/** Rasterize one page at a scale; white background for JPEG, transparent PNG otherwise. */
+async function renderPage(
+  page: PdfPageLike,
+  scale: number,
+  opts: { background?: string; quality: number; to: 'png' | 'jpg' },
+): Promise<Buffer> {
+  const viewport = page.getViewport({ scale })
+  const width = Math.max(1, Math.ceil(viewport.width))
+  const height = Math.max(1, Math.ceil(viewport.height))
+  const canvas = createCanvas(width, height)
+  const cctx = canvas.getContext('2d')
+  if (opts.background) {
+    cctx.fillStyle = opts.background
+    cctx.fillRect(0, 0, width, height)
+  }
+  await page.render({ canvasContext: cctx, viewport }).promise
+  return opts.to === 'png' ? canvas.encode('png') : canvas.encode('jpeg', opts.quality)
+}
+
 function fail(req: ConvertRequest, code: 'cancelled', message: string): ConvertResult {
   return { ok: false, input: req.input, from: req.from, to: req.to, error: convertError(code, message) }
+}
+
+function failErr(req: ConvertRequest, error: import('../types.js').ConvertError): ConvertResult {
+  return { ok: false, input: req.input, from: req.from, to: req.to, error }
+}
+
+function platformKey(): 'win32' | 'darwin' | 'linux' {
+  return process.platform === 'win32' ? 'win32' : process.platform === 'darwin' ? 'darwin' : 'linux'
 }
 
 /** Minimal per-page text assembly: keep line breaks, avoid word-gluing. */

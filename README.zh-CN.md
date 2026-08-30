@@ -27,7 +27,7 @@ Agent 日常需要各种格式转换："把这个 PDF 转成图片"、"把这个
 | JSON | YAML、CSV |
 | YAML | JSON、CSV |
 | DOCX、PPTX、XLSX | PDF |
-| PDF | PNG、JPG、TXT、DOCX（实验性） |
+| PDF | PNG、JPG、TXT、DOCX（实验性）；TXT 支持扫描件 OCR |
 | MP4 | GIF、MP3 |
 | MOV | MP4 |
 | WAV | MP3 |
@@ -38,7 +38,8 @@ Agent 日常需要各种格式转换："把这个 PDF 转成图片"、"把这个
 - **FFmpeg** -> 音视频四条。装系统级，**或让 Agent 跑 `install_media_dependencies`**——默认从 `npmmirror.com` 镜像下载固定版本二进制（约 80-140 MB，一次性）到插件缓存，带 sha512 校验，npmjs.org 自动回退。
 - **LibreOffice** -> DOCX/PPTX/XLSX 转 PDF。`winget install TheDocumentFoundation.LibreOffice` / `brew install --cask libreoffice` / `apt install libreoffice`。
 - **Ghostscript** -> `optimize_file` 的 PDF 压缩。
-- **Python + pdf2docx** -> 实验性的 PDF 转 DOCX（`pip install pdf2docx`）。Office（DOCX/PPTX/XLSX→PDF，走 LibreOffice）计划在 V0.3。
+- **Python + pdf2docx** -> 实验性的 PDF 转 DOCX（`pip install pdf2docx`）。
+- **Tesseract**（可选）-> 更快的扫描件 OCR；不装则用内置 tesseract.js（`winget install UB-Mannheim.TesseractOCR`，记得勾选 chi_sim 语言组件）。
 
 ## 安装
 
@@ -67,9 +68,10 @@ dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 ```
 
 - 默认输出到源文件同目录、同名换后缀。
-- 多页 PDF 会为每一页输出 `<文件名>-<页码>.<后缀>`。
+- 多页 PDF 会为每一页输出 `<文件名>-<页码>.<后缀>`；`pages: "1-3,5"` 选择页码（输出保留真实页码，TXT 只拼接所选页）。
+- 扫描件 PDF → TXT：`ocr: true`（可选 `ocr_lang`，默认 `chi_sim+eng`）对渲染页面做识别，而不是读文本层。引擎优先本机 Tesseract CLI，其次插件内置的 tesseract.js（语言数据首次使用时缓存到插件目录）。
 - 输出文件已存在时默认拒绝，需显式 `overwrite: true`。
-- 可选参数：`output`、`overwrite`、`quality`（1–100）、`dpi`（PDF/SVG 光栅化）。
+- 可选参数：`output`、`overwrite`、`quality`（1–100）、`dpi`（PDF/SVG 光栅化）、`pages`、`ocr`、`ocr_lang`。
 
 ### `batch_convert` —— 目录批量转换
 
@@ -89,7 +91,7 @@ dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 { "kind": "pdf", "pages": 24, "encrypted": false, "likelyScanned": true, "bytes": 13000000 }
 ```
 
-图片返回尺寸/通道数，数据文件返回记录数。`likelyScanned: true` 提示这可能是扫描件（此类 PDF 的 OCR 属于后续版本）。
+图片返回尺寸/通道数，数据文件返回记录数。`likelyScanned: true` 提示这可能是扫描件——转 TXT 时加 `ocr: true` 即可识别。
 
 ### `optimize_file` —— 按目标体积压缩
 
@@ -122,6 +124,7 @@ PDF 走 Ghostscript 三档预设（printer/ebook/screen）自动迭代：某档�
 | `batchMaxFiles` | `500` | 每次 `batch_convert` 最多检查的文件数；超出时会在结果里明确报告跳过了多少，而不是静默截断 |
 | `outputRoots` | `[]` | 非空时，显式指定的 `output` 路径必须落在这些目录之内（共享部署建议开启；默认写到输入文件旁的输出不受限） |
 | `ffmpegPath` / `ffprobePath` | - | ffmpeg 不在 PATH 时（Windows 常见）手动指定二进制路径 |
+| `sofficePath` / `ghostscriptPath` / `pythonPath` / `tesseractPath` | - | 各可选工具的手动路径，优先于自动探测 |
 
 ## 架构
 
@@ -166,7 +169,7 @@ npm run smoke     # 针对 lib/ 的端到端冒烟测试
 
 - ~~V0.2 —— 音视频（FFmpeg）~~ **已发布**：MP4→GIF/MP3、WAV→MP3、MOV→MP4，以及按目标体积两遍编码的 `optimize_file`。
 - ~~V0.3 —— Office + PDF 工具链~~ **已发布**：LibreOffice 解锁 DOCX/PPTX/XLSX→PDF，python pdf2docx 支持实验性 PDF→DOCX，Ghostscript 支持 PDF 压缩；依赖支持按需下载并默认走国内镜像。
-- 更远：扫描件 OCR、页码范围选择、转换链（PPTX→PDF→PNG）、`optimize_file` 视频降分辨率、图片缩放/旋转。
+- 更远：扫描件 OCR → DOCX、转换链（PPTX→PDF→PNG）、`optimize_file` 视频降分辨率、图片缩放/旋转。
 
 ## 许可
 

@@ -1,3 +1,10 @@
+## [0.4.2] - 2026-08-30
+
+### Fixed
+
+- `optimize_file` resolves output/input through the shared same-file guard, so an output symlink aliasing the input can no longer bypass the destroy-the-source check.
+- Atomic writes: the temp file is a sibling of the target (same volume, no EXDEV); Windows AV locks are retried briefly and then fail loudly instead of silently degrading to a non-atomic copy.
+
 ## [0.4.1] - 2026-08-30
 
 ### Fixed

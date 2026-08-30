@@ -39,11 +39,63 @@ function probeDependency(dep: BinaryDependency, resolved: string): Promise<boole
   return pending
 }
 
+/**
+ * Locate the first existing entry. Patterns may carry `*` in ANY segment
+ * (e.g. `C:\Program Files\gs\gs*\bin\gswin64c.exe`); wildcard segments match
+ * one path level, preferring the highest-sorted match so newer versions win.
+ */
 async function firstExisting(paths: string[]): Promise<string | null> {
-  for (const p of paths) {
-    if (await exists(p)) return p
+  for (const candidate of paths) {
+    if (!candidate.includes('*')) {
+      if (await exists(candidate)) return candidate
+      continue
+    }
+    const expanded = await expandPattern(candidate)
+    for (const full of expanded) {
+      if (await exists(full)) return full
+    }
   }
   return null
+}
+
+function wildcardRegex(segment: string): RegExp {
+  return new RegExp('^' + segment.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^\\\\/:]*') + '$', 'i')
+}
+
+/** Expand a path pattern segment by segment; [] when nothing matches. */
+export async function expandPattern(pattern: string): Promise<string[]> {
+  const absolute = /^[\\/]/.test(pattern)
+  const segments = pattern.split(/[\\/]+/).filter((seg, index) => !(index === 0 && seg === ''))
+  let current: string[] = [absolute ? path.sep : '']
+
+  for (const seg of segments) {
+    if (!seg.includes('*')) {
+      current = current.map((prefix) => {
+        if (prefix === '') return seg
+        // path.join('C:', 'x') drops the drive separator on Windows
+        if (/^[A-Za-z]:$/.test(prefix)) return prefix + path.sep + seg
+        return path.join(prefix, seg)
+      })
+      continue
+    }
+    const regex = wildcardRegex(seg)
+    const next: string[] = []
+    for (const prefix of current) {
+      let entries: string[] = []
+      try {
+        entries = await fs.readdir(prefix === '' ? '.' : prefix)
+      } catch {
+        continue
+      }
+      const matches = entries
+        .filter((entry) => regex.test(entry))
+        .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
+      for (const entry of matches) next.push(path.join(prefix, entry))
+    }
+    if (next.length === 0) return []
+    current = next
+  }
+  return current
 }
 
 /**

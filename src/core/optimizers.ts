@@ -12,8 +12,14 @@ export const GHOSTSCRIPT: BinaryDependency = {
   displayName: 'Ghostscript',
   commands: ['gswin64c', 'gswin32c', 'gs'],
   configKey: 'ghostscriptPath',
+  extraPaths: {
+    // gs installs into a versioned directory and is not always on PATH
+    win32: ['C:\\Program Files\\gs\\gs*\\bin\\gswin64c.exe'],
+    darwin: ['/opt/homebrew/bin/gs', '/usr/local/bin/gs'],
+    linux: ['/usr/bin/gs', '/usr/local/bin/gs'],
+  },
   installHint: {
-    win32: 'winget install ArtifexSoftware.GhostScript',
+    win32: 'winget install ArtifexSoftware.GhostScript (or download from github.com/ArtifexSoftware/ghostpdl-downloads)',
     darwin: 'brew install ghostscript',
     linux: 'sudo apt install ghostscript',
   },

@@ -43,10 +43,21 @@ Agents constantly need file conversions: "turn this PDF into images", "give me t
 
 ## Install
 
-Inside a DSH profile:
+Inside a DSH profile — three ways, easiest first:
 
 ```sh
+# 1. from npm (once published)
 dsh plugin --profile default add dsh-file-convert
+
+# 2. straight from GitHub (a `prepare` build runs; allow it once)
+dsh plugin --profile default add github:zzy-12345678/dsh-file-convert
+```
+
+Git installs may ask you to allow the build step in the profile's `pnpm-workspace.yaml`:
+
+```yaml
+allowBuilds:
+  dsh-file-convert: true
 ```
 
 From a local checkout (e.g. while hacking on it):

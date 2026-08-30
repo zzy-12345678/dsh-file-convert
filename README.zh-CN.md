@@ -43,10 +43,21 @@ Agent 日常需要各种格式转换："把这个 PDF 转成图片"、"把这个
 
 ## 安装
 
-在 DSH profile 中：
+在 DSH profile 中——三种方式，按省事程度排序：
 
 ```sh
+# 1. 从 npm 安装（发包后可用）
 dsh plugin --profile default add dsh-file-convert
+
+# 2. 直接从 GitHub 安装（会执行一次构建，需放行）
+dsh plugin --profile default add github:zzy-12345678/dsh-file-convert
+```
+
+Git 安装可能需要在 profile 的 `pnpm-workspace.yaml` 里放行构建步骤：
+
+```yaml
+allowBuilds:
+  dsh-file-convert: true
 ```
 
 本地开发安装：

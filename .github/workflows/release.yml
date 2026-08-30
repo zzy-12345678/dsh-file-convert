@@ -22,8 +22,19 @@ jobs:
       - run: npm run build
       - run: npm test
       - run: npm run smoke
+      - name: Check for NPM_TOKEN
+        id: npm_token
+        run: |
+          if [ -n "${{ secrets.NPM_TOKEN }}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::NPM_TOKEN secret is not configured - skipping npm publish. Add it (Automation token) or configure Trusted Publishing to enable tag-driven releases."
+          fi
+
       - name: Publish to npm with provenance
-        run: npm publish
+        if: steps.npm_token.outputs.available == 'true'
+        run: npm publish --provenance
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Create GitHub release from the tag

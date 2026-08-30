@@ -10,6 +10,9 @@ import { createInstallMediaTool } from './tools/install-media.js'
 import { createInstallOcrTool } from './tools/install-ocr.js'
 
 export { Config } from './config.js'
+// Library consumers (CLI, MCP wrapper, tests) can import the whole core
+// surface from the package root; the DSH loader only reads name/inject/apply.
+export * from './core/index.js'
 
 export const name = 'dsh-file-convert'
 export const inject = ['tools']

@@ -5,3 +5,4 @@ coverage/
 .vitest/
 .DS_Store
 *.log
+*.tgz

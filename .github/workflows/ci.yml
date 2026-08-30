@@ -30,6 +30,18 @@ jobs:
           sudo apt-get install -y --no-install-recommends libreoffice-writer libreoffice-calc libreoffice-impress ghostscript
           pip3 install pdf2docx
 
+      - name: Install ffmpeg (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y ffmpeg
+
+      - name: Install ffmpeg (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+
+      - name: Install ffmpeg (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg -y --no-progress
+
       - name: Build
         run: npm run build
 

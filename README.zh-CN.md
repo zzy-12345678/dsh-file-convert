@@ -8,7 +8,7 @@
 
 ## 为什么做这个
 
-Agent 日常需要各种格式转换："把这个 PDF 转成图片"、"把这个 JSON 变成 YAML"、"把文件夹里所有 JPG 转成 WebP"。`dsh-file-convert` 提供四个专用 tool，背后是久经考验的本地库，你只需用自然语言提需求。
+Agent 日常需要各种格式转换："把这个 PDF 转成图片"、"把这个 JSON 变成 YAML"、"把文件夹里所有 JPG 转成 WebP"。`dsh-file-convert` 提供六个专用 tool，背后是久经考验的本地库，你只需用自然语言提需求。
 
 - ✅ **本地执行** —— 文件不出机器
 - ✅ **不要 API Key、不要服务器、不耗转换 Token**
@@ -17,7 +17,7 @@ Agent 日常需要各种格式转换："把这个 PDF 转成图片"、"把这个
 - ✅ **失败必有原因** —— 缺依赖 / 不支持的组合 / 输出已存在，每个错误都说明清楚
 - ✅ **图片/PDF/数据零外部依赖** —— npm 预编译包装完即用；音视频只依赖 ffmpeg，缺了会明确提示
 
-## V0.1 支持的转换
+## 当前支持的转换
 
 | 输入 | 可输出 |
 | --- | --- |
@@ -56,7 +56,7 @@ cd dsh-file-convert && npm install && npm run build
 dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 ```
 
-重启 DSH（`dsh web` 或你的常规入口）后，四个 tool 自动出现。
+重启 DSH（`dsh web` 或你的常规入口）后，六个 tool 自动出现。
 
 ## 六个 Tool
 
@@ -110,7 +110,7 @@ PDF 走 Ghostscript 三档预设（printer/ebook/screen）自动迭代：某档�
 
 ### `list_conversions` —— 当前机器的能力清单
 
-列出全部支持的转换；某项不可用时，明确指出缺哪个外部工具并给出安装提示。V0.1 零外部依赖，全部可用。
+列出全部 26 种转换在当前机器上的实时可用状态；某项不可用时，明确指出缺哪个外部工具并给出安装提示。图片/PDF/数据类开箱即用，音视频、Office、PDF 压缩依赖可选工具（媒体依赖还能由 Agent 经 `install_media_dependencies` 自动补齐）。
 
 ## 插件配置
 

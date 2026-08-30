@@ -8,7 +8,7 @@ Convert images, PDFs and data files directly inside your DSH agent sessions — 
 
 ## Why
 
-Agents constantly need file conversions: "turn this PDF into images", "give me that JSON as YAML", "convert all JPGs in this folder to WebP". Instead of shelling out or pasting data around, `dsh-file-convert` gives your agent four purpose-built tools backed by battle-tested local libraries.
+Agents constantly need file conversions: "turn this PDF into images", "give me that JSON as YAML", "convert all JPGs in this folder to WebP". Instead of shelling out or pasting data around, `dsh-file-convert` gives your agent six purpose-built tools backed by battle-tested local libraries.
 
 - ✅ **Local execution** — files never leave the machine
 - ✅ **No API key, no server, no conversion tokens**
@@ -17,7 +17,7 @@ Agents constantly need file conversions: "turn this PDF into images", "give me t
 - ✅ **Honest failures** — missing dependency, unsupported pair, existing output: every error says exactly why
 - ✅ **Images, PDF and data need zero external binaries** — prebuilt npm packages only. Media needs one tool (ffmpeg), clearly reported when missing
 
-## Supported conversions (V0.1)
+## Supported conversions
 
 | Source | Targets |
 | --- | --- |
@@ -56,7 +56,7 @@ cd dsh-file-convert && npm install && npm run build
 dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 ```
 
-Then restart DSH (`dsh web` or your usual entry point). All four tools appear automatically.
+Then restart DSH (`dsh web` or your usual entry point). All six tools appear automatically.
 
 ## The six tools
 
@@ -134,7 +134,7 @@ One-call media setup: downloads pinned `@ffmpeg-installer` / `@ffprobe-installer
 
 ### `list_conversions`
 
-What works on *this* machine, right now — unavailable rows name the missing tool and how to install it. V0.1 needs nothing external, so everything is available.
+All 26 conversions with their live availability on *this* machine — unavailable rows name the missing tool and how to install it. Images, PDF and data rows are usable out of the box; media, office and PDF-compression rows depend on the optional tools (media can even be set up by the agent via `install_media_dependencies`).
 
 ## Plugin config
 

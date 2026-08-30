@@ -54,6 +54,12 @@ dsh plugin --profile default add github:zzy-12345678/dsh-file-convert
 ```
 
 Git installs may ask you to allow the build step in the profile's `pnpm-workspace.yaml`:
+> **First-install note**: pnpm may also ask you to decide on a build script for `tesseract.js` (it only shows a donation notice — skipping is safe). Set it in the same file and re-run the install:
+>
+> ```yaml
+> allowBuilds:
+>   tesseract.js: false
+> ```
 
 ```yaml
 allowBuilds:

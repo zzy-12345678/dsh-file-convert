@@ -54,6 +54,14 @@ dsh plugin --profile default add github:zzy-12345678/dsh-file-convert
 ```
 
 Git 安装可能需要在 profile 的 `pnpm-workspace.yaml` 里放行构建步骤：
+> **首次安装提示**：pnpm 还可能要求你决定 `tesseract.js` 的构建脚本是否执行（它只是捐赠提示，跳过毫无影响）。在同一个文件里加上：
+>
+> ```yaml
+> allowBuilds:
+>   tesseract.js: false
+> ```
+>
+> 然后重新执行安装命令即可。
 
 ```yaml
 allowBuilds:

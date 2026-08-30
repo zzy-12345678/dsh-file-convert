@@ -1,3 +1,10 @@
+## [0.4.1] - 2026-08-30
+
+### Fixed
+
+- The package root now re-exports the whole core API (`createRouter`, converters, guards), so library consumers and the packaging CI can import it directly.
+- CI installs ffmpeg on all three OSes (runner images stopped shipping it): the media suite runs for real again and the ungated corrupt-media test no longer trips over `missing_dependency`.
+
 # Changelog
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/).

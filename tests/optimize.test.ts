@@ -147,10 +147,12 @@ describeIfFfmpeg('optimize_file (video, needs ffmpeg)', () => {
   it('shrinks an mp4 toward the target with two-pass x264', async () => {
     const dir = await tmpDir()
     const input = path.join(dir, 'clip.mp4')
+    // 15s at 640x480: big enough that a 50% target sits above the two-pass
+    // minimum bitrate floor (tiny fixtures get refused by design).
     await run('ffmpeg', [
       '-hide_banner', '-loglevel', 'error', '-y',
-      '-f', 'lavfi', '-i', 'testsrc=duration=3:size=320x240:rate=24',
-      '-f', 'lavfi', '-i', 'sine=frequency=440:duration=3',
+      '-f', 'lavfi', '-i', 'testsrc2=duration=15:size=640x480:rate=24',
+      '-f', 'lavfi', '-i', 'sine=frequency=440:duration=15',
       '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18',
       '-c:a', 'aac', '-b:a', '128k', '-shortest', input,
     ])

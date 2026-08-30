@@ -7,6 +7,18 @@ import { convertError } from './errors.js'
 import { FFMPEG, FFPROBE } from './converters/media.js'
 import type { BinaryDependency, ConvertContext, ConvertError, ConvertErrorCode, FormatId } from './types.js'
 
+export const GHOSTSCRIPT: BinaryDependency = {
+  name: 'ghostscript',
+  displayName: 'Ghostscript',
+  commands: ['gswin64c', 'gswin32c', 'gs'],
+  configKey: 'ghostscriptPath',
+  installHint: {
+    win32: 'winget install ArtifexSoftware.GhostScript',
+    darwin: 'brew install ghostscript',
+    linux: 'sudo apt install ghostscript',
+  },
+}
+
 export type OptimizeResult =
   | {
       ok: true
@@ -51,6 +63,18 @@ export async function optimizeFile(
     let detail: string
     const warnings: string[] = []
 
+    if (bytesIn <= targetBytes) {
+      // Nothing to do: keep the source as the output so the caller always gets a file.
+      await fs.copyFile(input, output)
+      return {
+        ok: true, input, output, format,
+        bytesIn, bytesOut: bytesIn,
+        durationMs: Date.now() - started,
+        detail: `input (${bytesIn} bytes) is already below the target (${targetBytes} bytes); copied unchanged`,
+        warnings: [],
+      }
+    }
+
     switch (format) {
       case 'mp4':
       case 'mov': {
@@ -70,12 +94,16 @@ export async function optimizeFile(
         warnings.push('PNG palette mode reduces the color count; compare visually.')
         break
       }
+      case 'pdf': {
+        const applied = await optimizePdf(input, targetBytes, output, resolve, ctx)
+        detail = applied.detail
+        warnings.push(...applied.warnings)
+        break
+      }
       case 'gif':
         return notPossible(input, format, 'GIF optimization is not supported yet.')
-      case 'pdf':
-        return notPossible(input, format, 'PDF optimization is planned for a later version (needs Ghostscript).')
       default:
-        return notPossible(input, format, `optimize_file supports mp4/mov video and jpg/webp/png images, not ${format}.`)
+        return notPossible(input, format, `optimize_file supports mp4/mov video, jpg/webp/png images and pdf, not ${format}.`)
     }
 
     bytesOut = (await fs.stat(output)).size
@@ -213,10 +241,57 @@ async function optimizeQuality(
   return bestQuality
 }
 
+/** Ghostscript presets, coarse to fine; keep the smallest produced result. */
+const PDF_PRESETS = [
+  { name: 'printer (300 dpi)', setting: '/printer' },
+  { name: 'ebook (150 dpi)', setting: '/ebook' },
+  { name: 'screen (72 dpi)', setting: '/screen' },
+]
+
+async function optimizePdf(
+  input: string,
+  targetBytes: number,
+  output: string,
+  resolve: BinaryResolver,
+  ctx: ConvertContext,
+): Promise<{ detail: string; warnings: string[] }> {
+  const gs = await requireBinary(resolve, GHOSTSCRIPT, ctx)
+  const base = [
+    '-dNOPAUSE', '-dBATCH', '-dQUIET', '-dNOSAFER',
+    '-sDEVICE=pdfwrite', '-dCompatibilityLevel=1.4',
+    `-sOutputFile=${output}`,
+  ]
+  let smallestSize = Number.POSITIVE_INFINITY
+
+  for (const preset of PDF_PRESETS) {
+    if (ctx.signal?.aborted) {
+      throw new OptimizeError(convertError('cancelled', 'Optimization cancelled.'))
+    }
+    await execTool(gs, [...base, `-dPDFSETTINGS=${preset.setting}`, input], {
+      timeoutMs: ctx.timeoutMs,
+      signal: ctx.signal,
+    })
+    const size = (await fs.stat(output)).size
+    if (size <= targetBytes) {
+      return { detail: `ghostscript ${preset.name}`, warnings: [] }
+    }
+    if (size < smallestSize) smallestSize = size
+  }
+
+  // The screen preset (smallest) is still above the target; its output is
+  // already written, so return it with an honest warning.
+  return {
+    detail: 'ghostscript screen (72 dpi)',
+    warnings: [
+      `Even the lowest preset exceeds the target (${Math.round(smallestSize / 1024)} KB produced); the smallest result was kept.`,
+    ],
+  }
+}
+
 async function requireBinary(resolve: BinaryResolver, dep: BinaryDependency, ctx: ConvertContext): Promise<string> {
   const resolved = await resolve(dep)
   if (!resolved) {
-    throw new OptimizeError(convertError('missing_dependency', `Missing dependency: ${dep.name}.`, {
+    throw new OptimizeError(convertError('missing_dependency', `Missing dependency: ${dep.displayName ?? dep.name}.`, {
       missing: [dep],
       hint: `Install hint (${process.platform}): ${dep.installHint[platformKey()]}`,
     }))

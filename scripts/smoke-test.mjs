@@ -52,7 +52,7 @@ const txt = await fs.readFile(txtFile, 'utf8')
 if (!txt.includes('dsh-file-convert smoke')) throw new Error('txt output unexpected')
 
 const statuses = await router.listConversions()
-if (statuses.length !== 22) throw new Error(`expected 22 capabilities, got ${statuses.length}`)
+if (statuses.length !== 26) throw new Error(`expected 26 capabilities, got ${statuses.length}`)
 
 // media: exercised whenever ffmpeg resolves (system PATH or plugin cache);
 // otherwise the matrix must report the media rows as unavailable.
@@ -68,8 +68,8 @@ if (ffmpegPath) {
   await run(['-f', 'lavfi', '-i', 'sine=frequency=440:duration=0.5', '-c:a', 'pcm_s16le', '-vn', wavFile])
   const mp3File = path.join(dir, 'smoke.mp3')
   await expectOk({ input: wavFile, outputFormat: 'mp3', output: mp3File })
-  const unavailable = statuses.filter((s) => !s.available)
-  if (unavailable.length !== 0) throw new Error(`expected no unavailable rows with ffmpeg resolvable, got: ${unavailable.map((u) => u.from + '->' + u.to)}`)
+  const mediaRows = statuses.filter((s) => ['mp4', 'mov', 'wav'].includes(s.from))
+  if (!mediaRows.every((s) => s.available)) throw new Error('media rows should be available when ffmpeg resolves')
   mediaNote = `wav -> mp3 verified via ${ffmpegPath}`
 } else {
   const mediaRows = statuses.filter((s) => ['mp4', 'mov', 'wav'].includes(s.from))
@@ -77,4 +77,7 @@ if (ffmpegPath) {
   mediaNote = 'no ffmpeg anywhere: media rows correctly reported unavailable'
 }
 
-console.log(`smoke OK: capability matrix (${statuses.length}), ${mediaNote} - in ${dir}`)
+const unavailable = statuses.filter((s) => !s.available).map((s) => `${s.from}->${s.to}(missing: ${s.missing.join(',')})`)
+const unavailableNote = unavailable.length > 0 ? `${unavailable.length} rows unavailable: ${unavailable.join(', ')}` : 'all rows available'
+
+console.log(`smoke OK: capability matrix (${statuses.length}), ${mediaNote}; ${unavailableNote} - in ${dir}`)

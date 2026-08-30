@@ -3,6 +3,21 @@ import type { FormatCategory, FormatId, FormatMeta } from './types.js'
 /** Single source of truth for format metadata. */
 export const FORMATS: Record<FormatId, FormatMeta> = {
   pdf: { category: 'document', extensions: ['.pdf'], mime: 'application/pdf' },
+  docx: {
+    category: 'document',
+    extensions: ['.docx'],
+    mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  },
+  pptx: {
+    category: 'document',
+    extensions: ['.pptx'],
+    mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  },
+  xlsx: {
+    category: 'document',
+    extensions: ['.xlsx'],
+    mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  },
   png: { category: 'image', extensions: ['.png'], mime: 'image/png' },
   jpg: { category: 'image', extensions: ['.jpg', '.jpeg'], mime: 'image/jpeg' },
   webp: { category: 'image', extensions: ['.webp'], mime: 'image/webp' },

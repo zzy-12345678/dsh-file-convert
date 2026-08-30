@@ -11,7 +11,7 @@ export function createOptimizeFileTool(router: ConversionRouter, config: Config,
   return defineTool({
     name: 'optimize_file',
     description:
-      'Shrink a file toward a target size, fully local: MP4/MOV video via two-pass x264 (bitrate computed from the target, output is MP4) and JPG/WEBP/PNG images via encoder quality search. Not for GIF/PDF yet. Needs ffmpeg+ffprobe installed for video; images work without any external tool.',
+      'Shrink a file toward a target size, fully local: MP4/MOV video via two-pass x264 (bitrate computed from the target, output is MP4), JPG/WEBP/PNG images via encoder quality search, and PDF via Ghostscript presets (printer/ebook/screen). Not for GIF yet. Video needs ffmpeg+ffprobe and PDF needs Ghostscript installed; images work without any external tool.',
     parameters: {
       input: { type: 'string', required: true, description: 'Absolute path of the file to shrink.' },
       target_size_mb: { type: 'number', required: true, description: 'Desired maximum output size in megabytes.' },

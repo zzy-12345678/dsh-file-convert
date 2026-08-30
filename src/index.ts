@@ -30,6 +30,9 @@ export function apply(ctx: Context, config: ConvertConfig) {
     binaryOverrides: {
       ...(config.ffmpegPath ? { ffmpegPath: config.ffmpegPath } : {}),
       ...(config.ffprobePath ? { ffprobePath: config.ffprobePath } : {}),
+      ...(config.sofficePath ? { sofficePath: config.sofficePath } : {}),
+      ...(config.ghostscriptPath ? { ghostscriptPath: config.ghostscriptPath } : {}),
+      ...(config.pythonPath ? { pythonPath: config.pythonPath } : {}),
     },
   })
 
@@ -40,7 +43,7 @@ export function apply(ctx: Context, config: ConvertConfig) {
   ctx.tools.register(createOptimizeFileTool(router, config, logger))
   ctx.tools.register(createInstallMediaTool(config, logger))
 
-  logger.info('dsh-file-convert loaded: 6 tools registered (22 conversions; media works after install_media_dependencies)')
+  logger.info('dsh-file-convert loaded: 6 tools registered (26 conversions; media via install_media_dependencies, office via LibreOffice)')
 }
 
 function isLogger(value: unknown): value is Logger {

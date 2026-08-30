@@ -10,6 +10,9 @@
 
 export type FormatId =
   | 'pdf'
+  | 'docx'
+  | 'pptx'
+  | 'xlsx'
   | 'png'
   | 'jpg'
   | 'webp'
@@ -45,16 +48,27 @@ export interface ConversionCapability {
 }
 
 /**
- * An external binary the plugin shells out to. V0.1 converters use none of
- * these; the interface is fixed now so V0.2 (FFmpeg) / V0.3 (LibreOffice,
- * Poppler) slot in without changing the contract.
+ * An external binary the plugin shells out to.
+ * Resolution order: config override → PATH → known install locations →
+ * plugin cache. `probe` allows deep checks (python with a specific module
+ * installed), `extraPaths` covers Windows installs that are not on PATH.
  */
 export interface BinaryDependency {
   name: string
+  /** Name shown to users when this dependency is missing. */
+  displayName?: string
   /** Command names probed on PATH, e.g. ['ffmpeg']. */
   commands: string[]
   /** Plugin config key that overrides the resolved path, e.g. 'ffmpegPath'. */
   configKey?: string
+  /** Absolute locations probed when the command is not on PATH. */
+  extraPaths?: { win32?: string[]; darwin?: string[]; linux?: string[] }
+  /**
+   * Deep check run against the resolved path; false counts as missing
+   * (e.g. python present but the required package not importable).
+   * Results are memoized per (dependency, path) for the process lifetime.
+   */
+  probe?: (resolvedPath: string) => Promise<boolean>
   installHint: { win32: string; darwin: string; linux: string }
 }
 

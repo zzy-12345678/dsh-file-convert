@@ -19,6 +19,12 @@ export interface Config {
   ffmpegPath?: string
   /** Explicit path to the ffprobe binary (usually next to ffmpeg). */
   ffprobePath?: string
+  /** Explicit path to the LibreOffice soffice binary. */
+  sofficePath?: string
+  /** Explicit path to the Ghostscript binary (gswin64c on Windows). */
+  ghostscriptPath?: string
+  /** Explicit python interpreter for the pdf2docx-based PDF → DOCX conversion. */
+  pythonPath?: string
 }
 
 export const Config: Schema<Config> = Schema.object({
@@ -29,4 +35,7 @@ export const Config: Schema<Config> = Schema.object({
   outputRoots: Schema.array(Schema.string()).default([]).description('Restrict explicit output paths to these directories. Empty = unrestricted.'),
   ffmpegPath: Schema.string().description('Explicit ffmpeg binary path (overrides PATH lookup).'),
   ffprobePath: Schema.string().description('Explicit ffprobe binary path (overrides PATH lookup).'),
+  sofficePath: Schema.string().description('Explicit LibreOffice soffice binary path (overrides auto-detection).'),
+  ghostscriptPath: Schema.string().description('Explicit Ghostscript binary path (overrides PATH lookup).'),
+  pythonPath: Schema.string().description('Explicit python interpreter for the pdf2docx-based PDF → DOCX conversion.'),
 })

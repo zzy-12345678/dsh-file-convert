@@ -26,12 +26,19 @@ Agent 日常需要各种格式转换："把这个 PDF 转成图片"、"把这个
 | PDF | PNG、JPG、TXT |
 | JSON | YAML、CSV |
 | YAML | JSON、CSV |
+| DOCX、PPTX、XLSX | PDF |
+| PDF | PNG、JPG、TXT、DOCX（实验性） |
 | MP4 | GIF、MP3 |
 | MOV | MP4 |
 | WAV | MP3 |
 | CSV | JSON、YAML |
 
-共 22 种转换。图片/PDF/数据 `npm install` 后开箱即用；四条音视频转换在 FFmpeg 可用后自动解锁：装系统级（进 PATH 或配置 `ffmpegPath`），**或者直接让 Agent 跑 `install_media_dependencies`**——默认从 `npmmirror.com` 镜像下载固定版本的二进制（Windows 上约 139 MB，一次性）到插件缓存，带 sha512 完整性校验，npmjs.org 作为自动回退。没装时 `list_conversions` 会标记为 unavailable 并指出缺什么。Office（DOCX/PPTX/XLSX→PDF，走 LibreOffice）计划在 V0.3。
+共 26 种转换。图片/PDF/数据 `npm install` 后开箱即用；其余按"装一个工具解锁一类"的节奏，缺什么 `list_conversions` 都会明说：
+
+- **FFmpeg** -> 音视频四条。装系统级，**或让 Agent 跑 `install_media_dependencies`**——默认从 `npmmirror.com` 镜像下载固定版本二进制（约 80-140 MB，一次性）到插件缓存，带 sha512 校验，npmjs.org 自动回退。
+- **LibreOffice** -> DOCX/PPTX/XLSX 转 PDF。`winget install TheDocumentFoundation.LibreOffice` / `brew install --cask libreoffice` / `apt install libreoffice`。
+- **Ghostscript** -> `optimize_file` 的 PDF 压缩。
+- **Python + pdf2docx** -> 实验性的 PDF 转 DOCX（`pip install pdf2docx`）。Office（DOCX/PPTX/XLSX→PDF，走 LibreOffice）计划在 V0.3。
 
 ## 安装
 
@@ -86,6 +93,8 @@ dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 
 ### `optimize_file` —— 按目标体积压缩
 
+PDF 走 Ghostscript 三档预设（printer/ebook/screen）自动迭代：某档已达标就停，全超则保留最小档并如实告知。需要 Ghostscript（`winget install ArtifexSoftware.GhostScript`）。
+
 ```json
 { "input": "video.mp4", "target_size_mb": 20 }
 ```
@@ -131,8 +140,10 @@ dsh plugin --profile default add /absolute/path/to/dsh-file-convert
                  ImageConverter     PdfConverter      DataConverter
                     sharp          pdfjs-dist         js-yaml
                  （npm libvips）  @napi-rs/canvas    csv-parse / stringify
-                                                     MediaConverter
-                                                    ffmpeg（可选，自动检测）
+                                                     MediaConverter        OfficeConverter
+                                                        ffmpeg（自动检测）     LibreOffice（自动检测）
+                                                     PdfToDocxConverter    optimize_file/pdf
+                                                    python+pdf2docx           Ghostscript（自动检测）
 ```
 
 - **声明式转换矩阵**：每条转换是 converter 上的一行数据（`{ from, to }`），Router 路由、`list_conversions`、依赖检查全部由此推导。
@@ -154,8 +165,8 @@ npm run smoke     # 针对 lib/ 的端到端冒烟测试
 ## Roadmap
 
 - ~~V0.2 —— 音视频（FFmpeg）~~ **已发布**：MP4→GIF/MP3、WAV→MP3、MOV→MP4，以及按目标体积两遍编码的 `optimize_file`。
-- **V0.3 —— Office（LibreOffice）**：DOCX/PPTX/XLSX→PDF；PDF→DOCX（实验性，OCR 参数位已预留）；PDF 压缩。
-- 更远：页码范围选择、转换链（PPTX→PDF→PNG）、`optimize_file` 视频降分辨率、图片缩放/旋转。
+- ~~V0.3 —— Office + PDF 工具链~~ **已发布**：LibreOffice 解锁 DOCX/PPTX/XLSX→PDF，python pdf2docx 支持实验性 PDF→DOCX，Ghostscript 支持 PDF 压缩；依赖支持按需下载并默认走国内镜像。
+- 更远：扫描件 OCR、页码范围选择、转换链（PPTX→PDF→PNG）、`optimize_file` 视频降分辨率、图片缩放/旋转。
 
 ## 许可
 

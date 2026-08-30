@@ -21,10 +21,36 @@ async function exists(p: string): Promise<boolean> {
   }
 }
 
+function platformKey(): 'win32' | 'darwin' | 'linux' {
+  return process.platform === 'win32' ? 'win32' : process.platform === 'darwin' ? 'darwin' : 'linux'
+}
+
+/** Probe results are memoized per (dependency, path) for the process lifetime. */
+const probeCache = new Map<string, Promise<boolean>>()
+
+function probeDependency(dep: BinaryDependency, resolved: string): Promise<boolean> {
+  if (!dep.probe) return Promise.resolve(true)
+  const key = `${dep.name}:${resolved}`
+  let pending = probeCache.get(key)
+  if (!pending) {
+    pending = dep.probe(resolved).catch(() => false)
+    probeCache.set(key, pending)
+  }
+  return pending
+}
+
+async function firstExisting(paths: string[]): Promise<string | null> {
+  for (const p of paths) {
+    if (await exists(p)) return p
+  }
+  return null
+}
+
 /**
- * Resolution order: explicit config override → system PATH → plugin cache.
- * A later system install therefore naturally takes priority over the cache,
- * while the cache keeps the feature working with zero system changes.
+ * Resolution order: explicit config override → system PATH → known install
+ * locations (Windows soffice is rarely on PATH) → plugin cache. Every
+ * candidate must pass the dependency's probe when it declares one — a config
+ * override pointing at a python without pdf2docx counts as missing.
  */
 export async function resolveBinaryCached(
   dep: BinaryDependency,
@@ -32,19 +58,36 @@ export async function resolveBinaryCached(
   which: (command: string) => Promise<string | null>,
   logger: Logger,
 ): Promise<string | null> {
-  const override = dep.configKey ? overrides[dep.configKey] : undefined
-  if (override) {
-    logger.debug(`binary ${dep.name}: using configured path ${override}`)
-    return override
+  const accept = async (resolved: string): Promise<string | null> => {
+    if (!(await probeDependency(dep, resolved))) {
+      logger.debug(`binary ${dep.name}: ${resolved} resolved but failed its probe`)
+      return null
+    }
+    logger.debug(`binary ${dep.name}: using ${resolved}`)
+    return resolved
   }
+
+  const override = dep.configKey ? overrides[dep.configKey] : undefined
+  if (override && (await exists(override))) return accept(override)
+
   for (const command of dep.commands) {
     const found = await which(command)
-    if (found) return found
+    if (found) {
+      const accepted = await accept(found)
+      if (accepted) return accepted
+    }
   }
+
+  const located = await firstExisting(dep.extraPaths?.[platformKey()] ?? [])
+  if (located) {
+    const accepted = await accept(located)
+    if (accepted) return accepted
+  }
+
   const cached = cachedBinaryPath(dep.name)
   if (await exists(cached)) {
-    logger.debug(`binary ${dep.name}: using cached ${cached}`)
-    return cached
+    const accepted = await accept(cached)
+    if (accepted) return accepted
   }
   return null
 }

@@ -12,6 +12,8 @@ export { ImageConverter } from './converters/image.js'
 export { PdfConverter } from './converters/pdf.js'
 export { DataConverter } from './converters/data.js'
 export { MediaConverter, FFMPEG, FFPROBE } from './converters/media.js'
+export { OfficeConverter, PdfToDocxConverter, SOFFICE, PYTHON_PDF2DOCX } from './converters/office.js'
+export { GHOSTSCRIPT } from './optimizers.js'
 export { optimizeFile, type OptimizeResult } from './optimizers.js'
 
 import { ConversionRouter, type RouterDefaults } from './router.js'
@@ -19,14 +21,19 @@ import { ImageConverter } from './converters/image.js'
 import { PdfConverter } from './converters/pdf.js'
 import { DataConverter } from './converters/data.js'
 import { MediaConverter } from './converters/media.js'
+import { OfficeConverter, PdfToDocxConverter } from './converters/office.js'
 import { resolveBinary } from './binary.js'
 import type { Logger } from './types.js'
 
 const SILENT_LOGGER: Logger = { debug() {}, info() {}, warn() {}, error() {} }
 
-/** Assemble the registry: image (sharp), pdf (pdfjs), data (yaml/csv), media (ffmpeg). */
+/**
+ * Assemble the registry: image (sharp), pdf (pdfjs), data (yaml/csv),
+ * media (ffmpeg), office (LibreOffice), pdf→docx (python pdf2docx).
+ */
 export function createRouter(defaults?: Partial<RouterDefaults>): ConversionRouter {
   const overrides = defaults?.binaryOverrides ?? {}
+  const resolve = (dep: import('./types.js').BinaryDependency) => resolveBinary(dep, overrides, SILENT_LOGGER)
   const router = new ConversionRouter({
     quality: defaults?.quality ?? 85,
     dpi: defaults?.dpi ?? 150,
@@ -37,6 +44,8 @@ export function createRouter(defaults?: Partial<RouterDefaults>): ConversionRout
   router.register(new ImageConverter())
   router.register(new PdfConverter())
   router.register(new DataConverter())
-  router.register(new MediaConverter((dep) => resolveBinary(dep, overrides, SILENT_LOGGER)))
+  router.register(new MediaConverter(resolve))
+  router.register(new OfficeConverter(resolve))
+  router.register(new PdfToDocxConverter(resolve))
   return router
 }

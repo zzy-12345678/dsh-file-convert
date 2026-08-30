@@ -47,6 +47,8 @@ async function hasBinary(command: string): Promise<boolean> {
 }
 
 const FFMPEG_AVAILABLE = await hasBinary('ffmpeg')
+const GS_COMMAND = process.platform === 'win32' ? 'gswin64c' : 'gs'
+const GS_AVAILABLE = (await hasBinary(GS_COMMAND)) || (await hasBinary('gs'))
 
 describe('optimize_file (images, no external tools)', () => {
   it('shrinks a jpg below the target via quality search', async () => {
@@ -109,6 +111,34 @@ describe('optimize_file (images, no external tools)', () => {
 })
 
 const describeIfFfmpeg = FFMPEG_AVAILABLE ? describe : describe.skip
+
+const describeIfGs = GS_AVAILABLE ? describe : describe.skip
+
+describeIfGs('optimize_file (pdf, needs ghostscript)', () => {
+  it('shrinks an image-heavy pdf below the target', async () => {
+    const dir = await tmpDir()
+    const jpg = await writeColorfulImage(dir, 'photo.jpg')
+    const { PDFDocument } = await import('pdf-lib')
+    const pdf = await PDFDocument.create()
+    const image = await pdf.embedJpg(jpg)
+    const page = pdf.addPage([240, 240])
+    page.drawImage(image, { x: 0, y: 0, width: 240, height: 240 })
+    const input = path.join(dir, 'doc.pdf')
+    await fs.writeFile(input, await pdf.save())
+
+    const bytesIn = (await fs.stat(input)).size
+    const targetBytes = Math.floor(bytesIn * 0.6)
+    // gs resolves by command name on the platforms that ship it
+    const realResolve = async () => GS_COMMAND
+
+    const result = await optimizeFile(input, targetBytes, path.join(dir, 'doc-min.pdf'), 'pdf', realResolve, {
+      logger: NULL_LOGGER,
+      timeoutMs: 120_000,
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.bytesOut).toBeLessThanOrEqual(targetBytes)
+  })
+})
 
 describeIfFfmpeg('optimize_file (video, needs ffmpeg)', () => {
   it('shrinks an mp4 toward the target with two-pass x264', async () => {

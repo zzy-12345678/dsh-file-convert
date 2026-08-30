@@ -26,12 +26,19 @@ Agents constantly need file conversions: "turn this PDF into images", "give me t
 | PDF | PNG, JPG, TXT |
 | JSON | YAML, CSV |
 | YAML | JSON, CSV |
+| DOCX, PPTX, XLSX | PDF |
+| PDF | PNG, JPG, TXT, DOCX (experimental) |
 | MP4 | GIF, MP3 |
 | MOV | MP4 |
 | WAV | MP3 |
 | CSV | JSON, YAML |
 
-22 conversions. Images, PDF and data work out of the box via `npm install`. The four media rows unlock once FFmpeg is available: install it system-wide (on PATH or via the `ffmpegPath` config), **or just ask the agent to run `install_media_dependencies`** — it downloads pinned builds into the plugin cache with sha512 integrity verification (about 139 MB on Windows, one time), from the `npmmirror.com` registry by default with npmjs.org as automatic fallback. Until then `list_conversions` reports the media rows as unavailable and names the missing tool. Office (DOCX/PPTX/XLSX via LibreOffice) is planned for V0.3.
+26 conversions. Images, PDF and data work out of the box via `npm install`. Optional tools unlock the rest, each clearly reported by `list_conversions` when missing:
+
+- **FFmpeg** -> media rows. Install it system-wide, **or ask the agent to run `install_media_dependencies`** — it downloads pinned builds into the plugin cache with sha512 integrity verification (about 80-140 MB, one time) from the `npmmirror.com` registry by default, with npmjs.org as fallback.
+- **LibreOffice** -> DOCX/PPTX/XLSX to PDF. `winget install TheDocumentFoundation.LibreOffice` / `brew install --cask libreoffice` / `apt install libreoffice`.
+- **Ghostscript** -> PDF compression in `optimize_file`.
+- **Python + pdf2docx** -> the experimental PDF to DOCX row (`pip install pdf2docx`).
 
 ## Install
 
@@ -117,8 +124,9 @@ Applied: two-pass x264: video 512k + audio 128k over 185.0s
 
 - MP4/MOV: two-pass x264, the video bitrate is computed from the target (audio 128k, dropping to 64k for tight targets); output is always MP4. Requires ffmpeg + ffprobe.
 - JPG/WEBP: binary-searches the highest encoder quality that fits; PNG uses palette reduction. No external tools needed.
+- PDF: Ghostscript quality presets (printer/ebook/screen), first preset that fits the target wins; requires Ghostscript.
 - Targets below what the codec can physically reach are refused with the achievable minimum.
-- GIF and PDF optimization are not supported yet.
+- GIF optimization is not supported yet.
 
 ### `install_media_dependencies`
 
@@ -156,8 +164,10 @@ What works on *this* machine, right now — unavailable rows name the missing to
                  ImageConverter     PdfConverter      DataConverter
                     sharp          pdfjs-dist         js-yaml
                  (libvips npm)   @napi-rs/canvas    csv-parse / stringify
-                                                     MediaConverter
-                                                        ffmpeg (optional, detected)
+                                                     MediaConverter        OfficeConverter
+                                                        ffmpeg (detected)      LibreOffice (detected)
+                                                     PdfToDocxConverter    optimize_file/pdf
+                                                     python + pdf2docx         Ghostscript (detected)
 ```
 
 - **Declarative matrix**: every conversion is a data row (`{ from, to }`) on its converter. Routing, `list_conversions` and dependency checks are all derived from it.
@@ -179,8 +189,8 @@ Add a conversion = add one capability row + implement it in a converter. Add a b
 ## Roadmap
 
 - ~~V0.2 — Media (FFmpeg)~~ **shipped**: MP4→GIF/MP3, WAV→MP3, MOV→MP4, plus `optimize_file` with target-size two-pass encoding.
-- **V0.3 — Office (LibreOffice)**: DOCX/PPTX/XLSX→PDF; PDF→DOCX (experimental, OCR-ready parameter surface already specced); PDF compression.
-- Later: page-range selection, conversion chains (PPTX→PDF→PNG), video downscaling in `optimize_file`, resize/rotate image options.
+- ~~V0.3 — Office + PDF tooling~~ **shipped**: DOCX/PPTX/XLSX→PDF via LibreOffice, experimental PDF→DOCX via python pdf2docx, PDF compression via Ghostscript; on-demand dependency downloads with an automatic CN mirror.
+- Later: OCR for scanned PDFs, page-range selection, conversion chains (PPTX→PDF→PNG), video downscaling in `optimize_file`, resize/rotate image options.
 
 ## License
 

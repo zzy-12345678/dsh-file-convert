@@ -20,11 +20,22 @@ describe('router pipeline', () => {
   it('reports unknown output formats with the supported list', async () => {
     const dir = await tmpDir()
     const input = await writeTransparentPng(dir)
-    const result = await router.convertFile({ input, outputFormat: 'docx' }, { logger: NULL_LOGGER })
+    const result = await router.convertFile({ input, outputFormat: 'mpg' }, { logger: NULL_LOGGER })
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.error.code).toBe('unsupported_conversion')
       expect(result.error.hint).toContain('Supported formats')
+    }
+  })
+
+  it('reports known formats without a route via list_conversions hint', async () => {
+    const dir = await tmpDir()
+    const input = await writeTransparentPng(dir)
+    const result = await router.convertFile({ input, outputFormat: 'docx' }, { logger: NULL_LOGGER })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.code).toBe('unsupported_conversion')
+      expect(result.error.hint).toContain('list_conversions')
     }
   })
 
@@ -84,13 +95,17 @@ describe('router pipeline', () => {
     expect(allowed.ok).toBe(true)
   })
 
-  it('listConversions covers the V0.2 matrix with no missing deps', async () => {
+  it('listConversions covers the V0.3 matrix', async () => {
     const statuses = await router.listConversions()
-    expect(statuses.length).toBe(22)
+    expect(statuses.length).toBe(26)
     const media = statuses.filter((s) => ['mp4', 'mov', 'wav'].includes(s.from))
     expect(media).toHaveLength(4)
+    const office = statuses.filter((s) => ['docx', 'pptx', 'xlsx'].includes(s.from))
+    expect(office).toHaveLength(3)
     const pdf = statuses.filter((s) => s.from === 'pdf').map((s) => s.to)
-    expect(pdf).toEqual(['jpg', 'png', 'txt'])
+    expect(pdf).toEqual(['docx', 'jpg', 'png', 'txt'])
+    const pdfToDocx = statuses.find((s) => s.from === 'pdf' && s.to === 'docx')
+    expect(pdfToDocx?.experimental).toBe(true)
   })
 
   it('inspect returns image facts and data record counts', async () => {

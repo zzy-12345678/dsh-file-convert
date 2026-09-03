@@ -6,6 +6,8 @@
 
 > **非官方社区插件。** 与 DeepSeek 官方无隶属关系。
 
+> **兼容性：** v0.4.4 起正式适配 DeepSeek Harness 0.1.2-rc.1 及其规范输出工具 API，需要 Node.js 22.13 或更高版本。
+
 ## 为什么做这个
 
 Agent 日常需要各种格式转换："把这个 PDF 转成图片"、"把这个 JSON 变成 YAML"、"把文件夹里所有 JPG 转成 WebP"。`dsh-file-convert` 提供七个专用 tool，背后是久经考验的本地库，你只需用自然语言提需求。

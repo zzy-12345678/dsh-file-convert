@@ -1,3 +1,13 @@
+## [0.4.4] - 2026-09-03
+
+### Changed
+
+- Officially target DeepSeek Harness 0.1.2-rc.1 by updating the `@deepseek-ai/dsh-tools` peer contract from 0.0.1-rc.1 to 0.1.2-rc.1.
+- Treat Cordis and dsh-tools as host-provided peer dependencies, matching first-party DSH plugin packaging and avoiding duplicate core runtimes.
+- Raise the Node.js floor to 22.13, matching DSH 0.1.2 and the installed PDF.js runtime requirement.
+- Refresh compatible Cordis, Schemastery and PDF.js patch/minor dependencies.
+- Add a compatibility contract test for bundle metadata, canonical outputs, strict argument validation and concurrency declarations.
+
 ## [0.4.3] - 2026-08-30
 
 ### Changed

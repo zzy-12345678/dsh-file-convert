@@ -1,6 +1,6 @@
 {
   "name": "dsh-file-convert",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Local-first file conversion for DeepSeek Harness - images, PDF, data, audio/video and office documents. No API keys, no uploads, no token cost.",
   "license": "MIT",
   "type": "module",
@@ -14,7 +14,7 @@
   },
   "homepage": "https://github.com/zzy-12345678/dsh-file-convert#readme",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13.0"
   },
   "files": [
     "lib",
@@ -42,8 +42,6 @@
     "local-first"
   ],
   "dependencies": {
-    "@deepseek-ai/cordis": "^4.0.2",
-    "@deepseek-ai/dsh-tools": "0.0.1-rc.1",
     "@deepseek-ai/schemastery": "^3.18.2",
     "@napi-rs/canvas": "^1.0.8",
     "csv-parse": "^7.0.2",
@@ -54,7 +52,13 @@
     "sharp": "^0.35.4",
     "tesseract.js": "^7.0.0"
   },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2",
+    "@deepseek-ai/dsh-tools": "^0.1.2-rc.1"
+  },
   "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2",
+    "@deepseek-ai/dsh-tools": "^0.1.2-rc.1",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.0.0",
     "docx": "^9.7.1",

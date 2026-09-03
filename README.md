@@ -6,6 +6,8 @@ Convert images, PDFs and data files directly inside your DSH agent sessions — 
 
 > **Unofficial community plugin.** Not affiliated with or endorsed by DeepSeek.
 
+> **Compatibility:** v0.4.4+ targets DeepSeek Harness 0.1.2-rc.1 and its canonical-output tool API. Node.js 22.13 or newer is required.
+
 ## Why
 
 Agents constantly need file conversions: "turn this PDF into images", "give me that JSON as YAML", "convert all JPGs in this folder to WebP". Instead of shelling out or pasting data around, `dsh-file-convert` gives your agent seven purpose-built tools backed by battle-tested local libraries.

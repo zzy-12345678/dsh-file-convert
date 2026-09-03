@@ -42,15 +42,15 @@
     "local-first"
   ],
   "dependencies": {
-    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/cordis": "^4.0.2",
     "@deepseek-ai/dsh-tools": "0.0.1-rc.1",
-    "@deepseek-ai/schemastery": "^3.18.1",
+    "@deepseek-ai/schemastery": "^3.18.2",
     "@napi-rs/canvas": "^1.0.8",
     "csv-parse": "^7.0.2",
     "csv-stringify": "^6.8.3",
     "file-type": "^22.0.2",
     "js-yaml": "^4.1.0",
-    "pdfjs-dist": "^6.2.108",
+    "pdfjs-dist": "^6.3.289",
     "sharp": "^0.35.4",
     "tesseract.js": "^7.0.0"
   },

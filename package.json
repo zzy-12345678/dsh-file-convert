@@ -60,7 +60,7 @@
     "@deepseek-ai/cordis": "^4.0.2",
     "@deepseek-ai/dsh-tools": "^0.1.2-rc.1",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^22.0.0",
+    "@types/node": "^26.4.0",
     "docx": "^9.7.1",
     "fflate": "^0.8.3",
     "pdf-lib": "^1.17.1",

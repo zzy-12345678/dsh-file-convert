@@ -6,7 +6,7 @@ Convert images, PDFs and data files directly inside your DSH agent sessions — 
 
 > **Unofficial community plugin.** Not affiliated with or endorsed by DeepSeek.
 
-> **Compatibility:** v0.4.4+ targets DeepSeek Harness 0.1.2-rc.1 and its canonical-output tool API. Node.js 22.13 or newer is required.
+> **Compatibility:** v0.4.5+ targets DeepSeek Harness 0.1.5-rc.2 and its canonical-output tool API. Node.js `^22.19.0 || >=24.0.0` is required.
 
 ## Why
 
@@ -211,9 +211,11 @@ All 26 conversions with their live availability on *this* machine — unavailabl
 ```sh
 npm install
 npm run build     # tsc -> lib/
-npm test          # vitest, 73 tests (plus a few environment-gated suites)
+npm test          # vitest, 77 tests (plus environment-gated suites)
 npm run smoke     # end-to-end against lib/
 ```
+
+Local development pulls the dsh-tools peer closure into `devDependencies` so typecheck and vitest can load the 0.1.5 tool registry. End users of the published plugin do not install these — the host profile provides them.
 
 Add a conversion = add one capability row + implement it in a converter. Add a backend = implement the `Converter` interface and register it in `createRouter()`.
 
@@ -227,10 +229,10 @@ Add a conversion = add one capability row + implement it in a converter. Add a b
 
 | Component | Verified version |
 | --- | --- |
-| DeepSeek Harness | 0.1.1-rc.2 |
-| @deepseek-ai/dsh-tools | 0.0.1-rc.1 |
-| @deepseek-ai/cordis | 4.0.1 |
-| Node.js | >= 20 (CI covers 22) |
+| DeepSeek Harness | 0.1.5-rc.2 |
+| @deepseek-ai/dsh-tools | 0.1.5-rc.2 |
+| @deepseek-ai/cordis | 4.0.2 |
+| Node.js | `^22.19.0 \|\| >=24.0.0` (CI covers 22) |
 
 DSH is a developer preview and its APIs will move - the plugin keeps all DSH imports inside a thin glue layer so adapting stays cheap.
 

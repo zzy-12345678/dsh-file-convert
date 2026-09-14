@@ -1,3 +1,11 @@
+## [0.4.5] - 2026-09-14
+
+### Changed
+
+- Officially target DeepSeek Harness 0.1.5-rc.2 by updating the `@deepseek-ai/dsh-tools` peer contract from 0.1.2-rc.1 to 0.1.5-rc.2.
+- Raise the Node.js floor to `^22.19.0 || >=24.0.0`, matching DSH 0.1.5's engines range.
+- Development installs pull the full dsh-tools peer closure (scope, llm, agent, session, …) so local typecheck and vitest load the 0.1.5 tool registry; runtime consumers still receive these from the host profile.
+
 ## [0.4.4] - 2026-09-03
 
 ### Changed

@@ -6,7 +6,7 @@
 
 > **非官方社区插件。** 与 DeepSeek 官方无隶属关系。
 
-> **兼容性：** v0.4.4 起正式适配 DeepSeek Harness 0.1.2-rc.1 及其规范输出工具 API，需要 Node.js 22.13 或更高版本。
+> **兼容性：** v0.4.5 起正式适配 DeepSeek Harness 0.1.5-rc.2 及其规范输出工具 API，需要 Node.js `^22.19.0 || >=24.0.0`。
 
 ## 为什么做这个
 
@@ -191,9 +191,11 @@ PDF 走 Ghostscript 三档预设（printer/ebook/screen）自动迭代：某档�
 ```sh
 npm install
 npm run build     # tsc -> lib/
-npm test          # vitest，73 项测试（另有个位数按环境门控的套件）
+npm test          # vitest，77 项测试（另有个位数按环境门控的套件）
 npm run smoke     # 针对 lib/ 的端到端冒烟测试
 ```
+
+本地开发会在 `devDependencies` 里拉齐 dsh-tools 的 peer 闭包，便于 typecheck 与 vitest 加载 0.1.5 工具注册表。最终用户安装插件时不需要这些——由宿主 profile 提供。
 
 加一种转换 = 在 converter 的能力表里加一行数据并实现它。加一类后端 = 实现 `Converter` 接口并在 `createRouter()` 注册。
 
@@ -207,10 +209,10 @@ npm run smoke     # 针对 lib/ 的端到端冒烟测试
 
 | 组件 | 已验证版本 |
 | --- | --- |
-| DeepSeek Harness | 0.1.1-rc.2 |
-| @deepseek-ai/dsh-tools | 0.0.1-rc.1 |
-| @deepseek-ai/cordis | 4.0.1 |
-| Node.js | ≥ 20（CI 覆盖 22） |
+| DeepSeek Harness | 0.1.5-rc.2 |
+| @deepseek-ai/dsh-tools | 0.1.5-rc.2 |
+| @deepseek-ai/cordis | 4.0.2 |
+| Node.js | `^22.19.0 \|\| >=24.0.0`（CI 覆盖 22） |
 
 DSH 仍处于 developer preview，API 可能变化——插件把 DSH 依赖隔离在薄胶水层，适配成本被刻意压低。
 

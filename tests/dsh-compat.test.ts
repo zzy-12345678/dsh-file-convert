@@ -50,20 +50,22 @@ function loadDefinitions(): ToolDefinition[] {
   return definitions
 }
 
-describe('DeepSeek Harness 0.1.2 compatibility', () => {
+describe('DeepSeek Harness 0.1.5 compatibility', () => {
   it('declares the current host runtime peers and bundle patch', async () => {
     const manifest = JSON.parse(
       await fs.readFile(new URL('../package.json', import.meta.url), 'utf8'),
     ) as {
       dsh?: { bundle?: { patch?: string } }
       peerDependencies?: Record<string, string>
+      engines?: { node?: string }
     }
 
     expect(manifest.dsh?.bundle?.patch).toBe('./cordis.patch.yml')
     expect(manifest.peerDependencies).toMatchObject({
       '@deepseek-ai/cordis': '^4.0.2',
-      '@deepseek-ai/dsh-tools': '^0.1.2-rc.1',
+      '@deepseek-ai/dsh-tools': '^0.1.5-rc.2',
     })
+    expect(manifest.engines?.node).toBe('^22.19.0 || >=24.0.0')
   })
 
   it('registers seven canonical-output definitions for the new tool runtime', () => {
@@ -82,7 +84,7 @@ describe('DeepSeek Harness 0.1.2 compatibility', () => {
     }
   })
 
-  it('uses the 0.1.2 strict argument validator', async () => {
+  it('uses the 0.1.5 strict argument validator', async () => {
     const convert = loadDefinitions().find((definition) => definition.name === 'convert_file')
     await expect(convert?.execute({}, {} as never)).rejects.toMatchObject({
       code: 'INVALID_ARGS',

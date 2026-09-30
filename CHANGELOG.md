@@ -1,3 +1,11 @@
+## [0.4.6] - 2026-09-14
+
+### Changed
+
+- Officially target DeepSeek Harness 0.2.0-rc.2 by updating the `@deepseek-ai/dsh-tools` peer contract from 0.1.5-rc.2 to 0.2.0-rc.2.
+- Align Cordis peer to `~4.0.4` to match the 0.2.0 host runtime.
+- Development installs pull the 0.2.0 peer closure (`dsh-ptc-runtime`, sandbox peers, …) so local typecheck and vitest load the 0.2.0 tool registry.
+
 ## [0.4.5] - 2026-09-14
 
 ### Changed

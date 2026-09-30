@@ -6,7 +6,7 @@
 
 > **非官方社区插件。** 与 DeepSeek 官方无隶属关系。
 
-> **兼容性：** v0.4.5 起正式适配 DeepSeek Harness 0.1.5-rc.2 及其规范输出工具 API，需要 Node.js `^22.19.0 || >=24.0.0`。
+> **兼容性：** v0.4.6 起正式适配 DeepSeek Harness 0.2.0-rc.2 及其规范输出工具 API，需要 Node.js `^22.19.0 || >=24.0.0`。
 
 ## 为什么做这个
 
@@ -209,9 +209,9 @@ npm run smoke     # 针对 lib/ 的端到端冒烟测试
 
 | 组件 | 已验证版本 |
 | --- | --- |
-| DeepSeek Harness | 0.1.5-rc.2 |
-| @deepseek-ai/dsh-tools | 0.1.5-rc.2 |
-| @deepseek-ai/cordis | 4.0.2 |
+| DeepSeek Harness | 0.2.0-rc.2 |
+| @deepseek-ai/dsh-tools | 0.2.0-rc.2 |
+| @deepseek-ai/cordis | 4.0.4 |
 | Node.js | `^22.19.0 \|\| >=24.0.0`（CI 覆盖 22） |
 
 DSH 仍处于 developer preview，API 可能变化——插件把 DSH 依赖隔离在薄胶水层，适配成本被刻意压低。

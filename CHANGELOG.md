@@ -1,3 +1,16 @@
+## [0.4.7] - 2026-10-18
+
+### Changed
+
+- Officially target DeepSeek Harness Desktop 0.2.1-rc.2 and its `@deepseek-ai/dsh-tools` 0.2.1-rc.2 runtime.
+- Align Cordis and Schemastery with the versions bundled by DSH 0.2.1-rc.2 (`4.0.5` and `3.18.5`).
+- Refresh the development peer closure: add `dsh-working-directory` required by the new tool runtime and remove the retired `dsh-invariants` package.
+
+### Fixed
+
+- Prefer LibreOffice's console launcher (`soffice.com`) on Windows, avoiding hangs from recent `soffice.exe` GUI launchers during headless conversion.
+- Use a disposable LibreOffice profile per conversion so stale settings from an older LibreOffice release cannot break headless exports.
+
 ## [0.4.6] - 2026-09-14
 
 ### Changed

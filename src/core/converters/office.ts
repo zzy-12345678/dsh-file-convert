@@ -20,7 +20,9 @@ export const SOFFICE: BinaryDependency = {
   configKey: 'sofficePath',
   extraPaths: {
     win32: [
+      'C:\\Program Files\\LibreOffice\\program\\soffice.com',
       'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
+      'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.com',
       'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
     ],
     darwin: ['/Applications/LibreOffice.app/Contents/MacOS/soffice'],
@@ -91,10 +93,12 @@ export class OfficeConverter implements Converter {
       const soffice = await this.required(SOFFICE, req, ctx)
       const bytesIn = (await fs.stat(req.input)).size
 
-      // A stable private profile: created once, reused across conversions.
-      const profile = path.join(os.homedir(), '.dsh-file-convert', 'lo-profile')
+      // A disposable profile avoids locks and stale settings across LibreOffice upgrades.
+      const workDir = await fs.mkdtemp(path.join(os.tmpdir(), 'dsh-office-'))
+      const profile = path.join(workDir, 'profile')
+      const outDir = path.join(workDir, 'output')
       await fs.mkdir(profile, { recursive: true })
-      const outDir = await fs.mkdtemp(path.join(os.tmpdir(), 'dsh-office-'))
+      await fs.mkdir(outDir, { recursive: true })
       try {
         await execTool(
           soffice,
@@ -125,7 +129,7 @@ export class OfficeConverter implements Converter {
           warnings: [],
         }
       } finally {
-        await fs.rm(outDir, { recursive: true, force: true }).catch(() => undefined)
+        await fs.rm(workDir, { recursive: true, force: true }).catch(() => undefined)
       }
     } catch (err) {
       if (err instanceof OfficeDependencyError) {

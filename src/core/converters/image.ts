@@ -64,6 +64,11 @@ export class ImageConverter implements Converter {
       }
 
       const buffer = await out.toBuffer()
+      // sharp cannot abort mid-encode; never write output for a conversion
+      // the caller has already given up on.
+      if (ctx.signal?.aborted) {
+        return { ok: false, input: req.input, from: req.from, to: req.to, error: convertError('cancelled', 'Conversion cancelled.') }
+      }
       await writeFileAtomic(req.output, buffer)
       const bytesOut = buffer.length
       return {

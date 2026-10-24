@@ -1,5 +1,7 @@
 import fs from 'node:fs/promises'
+import path from 'node:path'
 import { ExecError, execTool } from '../utils/exec.js'
+import { publishFileAtomic } from '../utils/write-file.js'
 import { convertError } from '../errors.js'
 import type {
   BinaryDependency,
@@ -48,29 +50,43 @@ export class MediaConverter implements Converter {
     { from: 'wav', to: 'mp3' },
   ]
 
+  /**
+   * The scratch file ends in .tmp, which ffmpeg cannot infer a muxer from,
+   * so every command names its output format explicitly.
+   */
+  private readonly muxer: Record<string, string> = { gif: 'gif', mp3: 'mp3', mp4: 'mp4' }
+
   constructor(
     private readonly resolve: (dep: BinaryDependency) => Promise<string | null>,
   ) {}
 
   async convert(req: ConvertRequest, ctx: ConvertContext): Promise<ConvertResult> {
     const started = Date.now()
+    // ffmpeg always encodes into a sibling scratch file; the real output only
+    // ever appears via an atomic rename, so a kill/timeout leaves nothing
+    // half-written behind.
+    const scratch = path.join(
+      path.dirname(req.output),
+      `.${path.basename(req.output)}.${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`,
+    )
     try {
       const bytesIn = (await fs.stat(req.input)).size
       const ffmpeg = await this.required(FFMPEG)
       switch (`${req.from}->${req.to}`) {
         case 'mp4->gif':
-          await execTool(ffmpeg, gifArgs(req), this.execOpts(ctx))
+          await execTool(ffmpeg, gifArgs(req, scratch, this.muxer.gif), this.execOpts(ctx))
           break
         case 'mp4->mp3':
         case 'wav->mp3':
-          await execTool(ffmpeg, audioArgs(req), this.execOpts(ctx))
+          await execTool(ffmpeg, audioArgs(req, scratch, this.muxer.mp3), this.execOpts(ctx))
           break
         case 'mov->mp4':
-          await this.movToMp4(req, ctx, ffmpeg)
+          await this.movToMp4(req, ctx, ffmpeg, scratch, this.muxer.mp4)
           break
         default:
           return fail(req, convertError('unsupported_conversion', `MediaConverter cannot handle ${req.from} -> ${req.to}.`))
       }
+      await publishFileAtomic(scratch, req.output)
       const bytesOut = (await fs.stat(req.output)).size
       return {
         ok: true,
@@ -97,17 +113,19 @@ export class MediaConverter implements Converter {
       return fail(req, convertError('conversion_failed', `Failed to convert ${req.from} → ${req.to}`, {
         detail: err instanceof Error ? err.message : String(err),
       }))
+    } finally {
+      await fs.rm(scratch, { force: true }).catch(() => undefined)
     }
   }
 
   /** MOV→MP4: try a lossless container swap first, fall back to re-encoding. */
-  private async movToMp4(req: ConvertRequest, ctx: ConvertContext, ffmpeg: string): Promise<void> {
+  private async movToMp4(req: ConvertRequest, ctx: ConvertContext, ffmpeg: string, scratch: string, muxer: string): Promise<void> {
     try {
-      await execTool(ffmpeg, [...GLOBAL, '-i', req.input, '-c', 'copy', '-movflags', '+faststart', req.output], this.execOpts(ctx))
+      await execTool(ffmpeg, [...GLOBAL, '-i', req.input, '-c', 'copy', '-movflags', '+faststart', '-f', muxer, scratch], this.execOpts(ctx))
     } catch {
       await execTool(
         ffmpeg,
-        [...GLOBAL, '-i', req.input, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', req.output],
+        [...GLOBAL, '-i', req.input, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', '-f', muxer, scratch],
         this.execOpts(ctx),
       )
     }
@@ -136,20 +154,20 @@ function platformKey(): 'win32' | 'darwin' | 'linux' {
   return process.platform === 'win32' ? 'win32' : process.platform === 'darwin' ? 'darwin' : 'linux'
 }
 
-function gifArgs(req: ConvertRequest): string[] {
+function gifArgs(req: ConvertRequest, output: string, muxer: string): string[] {
   // Two-pass palette in one filter graph: split -> palettegen + paletteuse.
   return [
     ...GLOBAL,
     '-i', req.input,
     '-filter_complex', '[0:v] fps=12,scale=480:-2:flags=lanczos,split [a][b];[a] palettegen [p];[b][p] paletteuse',
-    req.output,
+    '-f', muxer, output,
   ]
 }
 
-function audioArgs(req: ConvertRequest): string[] {
+function audioArgs(req: ConvertRequest, output: string, muxer: string): string[] {
   const quality = req.options.quality ?? 85
   const kbps = Math.round(64 + (Math.min(100, Math.max(1, quality)) / 100) * (320 - 64))
-  return [...GLOBAL, '-i', req.input, '-vn', '-codec:a', 'libmp3lame', '-b:a', `${kbps}k`, req.output]
+  return [...GLOBAL, '-i', req.input, '-vn', '-codec:a', 'libmp3lame', '-b:a', `${kbps}k`, '-f', muxer, output]
 }
 
 function fail(req: ConvertRequest, error: import('../types.js').ConvertError): ConvertResult {

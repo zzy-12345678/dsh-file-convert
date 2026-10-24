@@ -6,7 +6,7 @@ Convert images, PDFs and data files directly inside your DSH agent sessions — 
 
 > **Unofficial community plugin.** Not affiliated with or endorsed by DeepSeek.
 
-> **Compatibility:** v0.4.7+ targets DeepSeek Harness Desktop 0.2.1-rc.2 and its canonical-output tool API. Node.js `^22.19.0 || >=24.0.0` is required.
+> **Compatibility:** v0.4.8+ targets DeepSeek Harness Desktop 0.2.1-rc.3 and its canonical-output tool API. Node.js `^22.19.0 || >=24.0.0` is required.
 
 ## Why
 
@@ -172,7 +172,9 @@ All 26 conversions with their live availability on *this* machine — unavailabl
 | `maxPdfPages` | `200` | Full-document PDF rasterization refuses more pages; use `pages` for larger documents |
 | `maxOutputPixels` | `16000000` | Clamp rasterized pixels per page (width × height) to this budget |
 
-**Limit coverage**: `maxInputMb` applies to convert, batch, inspect and optimize alike; `maxPdfPages` applies to PDF rasterization and text extraction (both implicit full-document runs and explicit `pages` selections); `maxOutputPixels` applies to PDF rasterization, OCR rendering and SVG rasterization; `timeoutMs` truly cancels every conversion (the underlying work stops, it is not merely abandoned).
+**Limit coverage**: `maxInputMb` applies to convert, batch, inspect and optimize alike; `maxPdfPages` applies to PDF rasterization and text extraction (both implicit full-document runs and explicit `pages` selections); `maxOutputPixels` applies to PDF rasterization, OCR rendering and SVG rasterization.
+
+**What `timeoutMs` cancellation stops**: external binaries are killed mid-run (ffmpeg, LibreOffice, Ghostscript, Tesseract CLI); an in-flight PDF page render is cancelled through pdf.js's render task; tesseract.js recognition is stopped by terminating its worker; pure-JS pipelines (sharp encoding, JSON/YAML/CSV parsing) are interrupted at every step boundary and never write output after an abort. One large synchronous step (a single sharp encode or `JSON.parse`) cannot be interrupted mid-flight — its result is discarded instead of written. Every final-path write is atomic (sibling temp file + rename), so an aborted conversion never leaves a half-written file behind.
 | `batchMaxFiles` | `500` | Max files examined per `batch_convert` run; beyond it the summary reports what was skipped instead of silently capping |
 | `outputRoots` | `[]` | When non-empty, explicit `output` paths must resolve inside one of these directories (recommended for shared deployments; the default next-to-input output is always exempt) |
 | `ffmpegPath` / `ffprobePath` | - | Explicit binary paths when ffmpeg is not on PATH (common on Windows) |
@@ -211,7 +213,7 @@ All 26 conversions with their live availability on *this* machine — unavailabl
 ```sh
 npm install
 npm run build     # tsc -> lib/
-npm test          # vitest, 77 tests (plus environment-gated suites)
+npm test          # vitest, 90 tests (plus environment-gated suites)
 npm run smoke     # end-to-end against lib/
 ```
 
@@ -229,8 +231,8 @@ Add a conversion = add one capability row + implement it in a converter. Add a b
 
 | Component | Verified version |
 | --- | --- |
-| DeepSeek Harness Desktop | 0.2.1-rc.2 |
-| @deepseek-ai/dsh-tools | 0.2.1-rc.2 |
+| DeepSeek Harness Desktop | 0.2.1-rc.3 |
+| @deepseek-ai/dsh-tools | 0.2.1-rc.3 |
 | @deepseek-ai/cordis | 4.0.5 |
 | Node.js | `^22.19.0 \|\| >=24.0.0` (CI covers 22) |
 

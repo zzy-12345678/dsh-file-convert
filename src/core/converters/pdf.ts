@@ -52,11 +52,18 @@ function standardFontDataUrl(): string | undefined {
   return undefined
 }
 
-/** Structural view of the pdfjs APIs we use, so the converter stays decoupled. */
+/** Structural view of the pdfjs APIs we use, so the converter stays decoupled.
+ * render() returns the real pdfjs RenderTask shape (promise + cancel) so an
+ * abort can stop an in-flight page render, not just the between-page loop. */
+interface PdfRenderTaskLike {
+  promise: Promise<void>
+  cancel(): void
+}
+
 interface PdfPageLike {
   getViewport(args: { scale: number }): { width: number; height: number }
-  render(args: { canvasContext: unknown; viewport: unknown }): { promise: Promise<void> }
-  getTextContent(): Promise<{ items: unknown[] }>
+  render(args: { canvasContext: unknown; viewport: unknown }): PdfRenderTaskLike
+  getTextContent(args?: { signal?: AbortSignal }): Promise<{ items: unknown[] }>
   cleanup(): void
 }
 
@@ -106,6 +113,9 @@ export class PdfConverter implements Converter {
     } catch (err) {
       if (err instanceof PageRangeError) {
         return { ok: false, input: req.input, from: req.from, to: req.to, error: err.error }
+      }
+      if (ctx.signal?.aborted) {
+        return { ok: false, input: req.input, from: req.from, to: req.to, error: convertError('cancelled', 'Conversion cancelled.') }
       }
       return {
         ok: false,
@@ -175,7 +185,7 @@ export class PdfConverter implements Converter {
           background: req.to === 'jpg' ? req.options.background ?? '#ffffff' : undefined,
           quality: req.options.quality ?? 85,
           to: req.to as 'png' | 'jpg',
-        })
+        }, ctx.signal)
         const out = selected.length === 1 ? req.output : withPageNumber(req.output, n, pad)
         await writeFileAtomic(out, buffer)
         bytesOut += buffer.byteLength
@@ -242,7 +252,7 @@ export class PdfConverter implements Converter {
       }
       const page = await doc.getPage(n)
       try {
-        const content = await page.getTextContent()
+        const content = await page.getTextContent({ signal: ctx.signal })
         pageTexts.push(itemsToText(content.items as TextItemLike[]))
       } finally {
         page.cleanup()
@@ -293,7 +303,7 @@ export class PdfConverter implements Converter {
               warnings.push('OCR render scale was reduced on some pages to fit the pixel budget; recognition quality may drop.')
             }
           }
-          const png = await renderPage(page, renderScale, { to: 'png', quality: 100 })
+          const png = await renderPage(page, renderScale, { to: 'png', quality: 100 }, ctx.signal)
           ocrTexts.push((await engine.recognizePng(png, ocrLang, ctx)).trim())
         } catch (err) {
           if (err instanceof OcrLanguageMissingError) {
@@ -336,11 +346,14 @@ function pageRange(totalPages: number): number[] {
   return Array.from({ length: totalPages }, (_, i) => i + 1)
 }
 
-/** Rasterize one page at a scale; white background for JPEG, transparent PNG otherwise. */
+/** Rasterize one page at a scale; white background for JPEG, transparent PNG otherwise.
+ * Aborting mid-render cancels the underlying pdfjs RenderTask, so the decode
+ * loop stops instead of finishing the page in the background. */
 async function renderPage(
   page: PdfPageLike,
   scale: number,
   opts: { background?: string; quality: number; to: 'png' | 'jpg' },
+  signal?: AbortSignal,
 ): Promise<Buffer> {
   const viewport = page.getViewport({ scale })
   const width = Math.max(1, Math.ceil(viewport.width))
@@ -351,7 +364,14 @@ async function renderPage(
     cctx.fillStyle = opts.background
     cctx.fillRect(0, 0, width, height)
   }
-  await page.render({ canvasContext: cctx, viewport }).promise
+  const task = page.render({ canvasContext: cctx, viewport })
+  const onAbort = () => task.cancel()
+  signal?.addEventListener('abort', onAbort, { once: true })
+  try {
+    await task.promise
+  } finally {
+    signal?.removeEventListener('abort', onAbort)
+  }
   return opts.to === 'png' ? canvas.encode('png') : canvas.encode('jpeg', opts.quality)
 }
 

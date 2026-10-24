@@ -7,7 +7,7 @@ import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { createWriteStream } from 'node:fs'
 import { execTool } from '../utils/exec.js'
-import { writeFileAtomic } from '../utils/write-file.js'
+import { publishFileAtomic, writeFileAtomic } from '../utils/write-file.js'
 import { cachedBinaryPath, cacheDir } from './cache.js'
 import type { BinaryDependency } from '../types.js'
 
@@ -118,9 +118,10 @@ export async function downloadBinary(
       const versionLine = (stdout || stderr).split(/\r?\n/, 1)[0]?.trim() ?? ''
 
       await fs.mkdir(path.dirname(target), { recursive: true })
-      await fs.rename(candidate, target).catch(async () => {
-        await fs.copyFile(candidate, target)
-      })
+      // Same-volume scratch is renamed into place; across volumes the bytes
+      // are copied to a sibling temp first - the cache target never sees a
+      // half-written binary, even if the process dies mid-publish.
+      await publishFileAtomic(candidate, target)
       await writeManifestEntry(dep.name, {
         version: versionLine,
         sha256: entry.sha256,

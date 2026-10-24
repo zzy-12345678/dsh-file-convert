@@ -63,7 +63,7 @@ describe('DeepSeek Harness 0.2.1 compatibility', () => {
     expect(manifest.dsh?.bundle?.patch).toBe('./cordis.patch.yml')
     expect(manifest.peerDependencies).toMatchObject({
       '@deepseek-ai/cordis': '~4.0.5',
-      '@deepseek-ai/dsh-tools': '0.2.1-rc.2',
+      '@deepseek-ai/dsh-tools': '0.2.1-rc.3',
     })
     expect(manifest.engines?.node).toBe('^22.19.0 || >=24.0.0')
   })

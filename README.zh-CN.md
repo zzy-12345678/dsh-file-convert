@@ -6,7 +6,7 @@
 
 > **非官方社区插件。** 与 DeepSeek 官方无隶属关系。
 
-> **兼容性：** v0.4.7 起正式适配 DeepSeek Harness Desktop 0.2.1-rc.2 及其规范输出工具 API，需要 Node.js `^22.19.0 || >=24.0.0`。
+> **兼容性：** v0.4.8 起正式适配 DeepSeek Harness Desktop 0.2.1-rc.3 及其规范输出工具 API，需要 Node.js `^22.19.0 || >=24.0.0`。
 
 ## 为什么做这个
 
@@ -152,7 +152,9 @@ PDF 走 Ghostscript 三档预设（printer/ebook/screen）自动迭代：某档�
 | `maxPdfPages` | `200` | 整本 PDF 光栅化超过此页数即拒绝；更大的文档请用 `pages` 选择 |
 | `maxOutputPixels` | `16000000` | 每页光栅化像素（宽 × 高）钳制到此预算 |
 
-**限制覆盖范围**：`maxInputMb` 作用于 convert / batch / inspect / optimize 全部入口；`maxPdfPages` 作用于 PDF 光栅化与文本提取（隐式整本与显式 `pages` 选择都受限）；`maxOutputPixels` 作用于 PDF 光栅化、OCR 渲染和 SVG 光栅化；`timeoutMs` 对所有转换真取消（超时会中止底层工作，不只是提前返回）。
+**限制覆盖范围**：`maxInputMb` 作用于 convert / batch / inspect / optimize 全部入口；`maxPdfPages` 作用于 PDF 光栅化与文本提取（隐式整本与显式 `pages` 选择都受限）；`maxOutputPixels` 作用于 PDF 光栅化、OCR 渲染和 SVG 光栅化。
+
+**`timeoutMs` 取消的真实覆盖面**：外部二进制进程会被当场终止（ffmpeg、LibreOffice、Ghostscript、Tesseract CLI）；进行中的 PDF 页面渲染通过 pdf.js 渲染任务取消；tesseract.js 识别通过终止 worker 真正停止；纯 JS 流程（sharp 编码、JSON/YAML/CSV 解析）在每个步骤边界被中断，且中止后绝不写出输出文件。单个较大的同步步骤（一次 sharp 编码或一次 `JSON.parse`）无法在中途打断，但其结果会被丢弃而不是落盘。所有最终路径的写入都是原子的（兄弟临时文件 + 重命名），中止的转换不会留下写了一半的文件。
 | `batchMaxFiles` | `500` | 每次 `batch_convert` 最多检查的文件数；超出时会在结果里明确报告跳过了多少，而不是静默截断 |
 | `outputRoots` | `[]` | 非空时，显式指定的 `output` 路径必须落在这些目录之内（共享部署建议开启；默认写到输入文件旁的输出不受限） |
 | `ffmpegPath` / `ffprobePath` | - | ffmpeg 不在 PATH 时（Windows 常见）手动指定二进制路径 |
@@ -191,7 +193,7 @@ PDF 走 Ghostscript 三档预设（printer/ebook/screen）自动迭代：某档�
 ```sh
 npm install
 npm run build     # tsc -> lib/
-npm test          # vitest，77 项测试（另有个位数按环境门控的套件）
+npm test          # vitest，90 项测试（另有个位数按环境门控的套件）
 npm run smoke     # 针对 lib/ 的端到端冒烟测试
 ```
 
@@ -209,8 +211,8 @@ npm run smoke     # 针对 lib/ 的端到端冒烟测试
 
 | 组件 | 已验证版本 |
 | --- | --- |
-| DeepSeek Harness Desktop | 0.2.1-rc.2 |
-| @deepseek-ai/dsh-tools | 0.2.1-rc.2 |
+| DeepSeek Harness Desktop | 0.2.1-rc.3 |
+| @deepseek-ai/dsh-tools | 0.2.1-rc.3 |
 | @deepseek-ai/cordis | 4.0.5 |
 | Node.js | `^22.19.0 \|\| >=24.0.0`（CI 覆盖 22） |
 

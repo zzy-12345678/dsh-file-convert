@@ -46,10 +46,18 @@ export class DataConverter implements Converter {
       }
     }
     try {
+      if (ctx.signal?.aborted) {
+        return cancelled(req)
+      }
       const raw = await fs.readFile(req.input, 'utf8')
       const bytesIn = Buffer.byteLength(raw)
       const value = this.read(from, raw, req.options.delimiter)
       const text = this.write(to, value, req.options.indent)
+      // JSON/YAML/CSV parsing is synchronous and cannot be interrupted
+      // mid-flight; still refuse to write output for an abandoned conversion.
+      if (ctx.signal?.aborted) {
+        return cancelled(req)
+      }
       await writeFileAtomic(req.output, text)
       return {
         ok: true,
@@ -104,6 +112,16 @@ export class DataConverter implements Converter {
 }
 
 class ParseError extends Error {}
+
+function cancelled(req: ConvertRequest): ConvertResult {
+  return {
+    ok: false,
+    input: req.input,
+    from: req.from,
+    to: req.to,
+    error: convertError('cancelled', 'Conversion cancelled.'),
+  }
+}
 
 /** CSV needs an array of flat objects; anything else is normalized into one. */
 function toRecords(value: unknown): Record<string, unknown>[] {

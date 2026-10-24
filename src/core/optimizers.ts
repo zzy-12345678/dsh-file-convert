@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import sharp from 'sharp'
 import { ExecError, execTool, probeMedia } from './utils/exec.js'
+import { publishFileAtomic, writeFileAtomic } from './utils/write-file.js'
 import { convertError } from './errors.js'
 import { FFMPEG, FFPROBE } from './converters/media.js'
 import type { BinaryDependency, ConvertContext, ConvertError, ConvertErrorCode, FormatId } from './types.js'
@@ -64,6 +65,9 @@ export async function optimizeFile(
 ): Promise<OptimizeResult> {
   const started = Date.now()
   try {
+    if (ctx.signal?.aborted) {
+      return { ok: false, error: convertError('cancelled', 'Optimization cancelled.') }
+    }
     const bytesIn = (await fs.stat(input)).size
     let bytesOut: number
     let detail: string
@@ -71,7 +75,7 @@ export async function optimizeFile(
 
     if (bytesIn <= targetBytes) {
       // Nothing to do: keep the source as the output so the caller always gets a file.
-      await fs.copyFile(input, output)
+      await publishFileAtomic(input, output)
       return {
         ok: true, input, output, format,
         bytesIn, bytesOut: bytesIn,
@@ -90,12 +94,12 @@ export async function optimizeFile(
       }
       case 'jpg':
       case 'webp': {
-        const used = await optimizeQuality(input, targetBytes, output, format)
+        const used = await optimizeQuality(input, targetBytes, output, format, ctx)
         detail = `${format} quality ${used}`
         break
       }
       case 'png': {
-        const used = await optimizeQuality(input, targetBytes, output, 'png')
+        const used = await optimizeQuality(input, targetBytes, output, 'png', ctx)
         detail = `png palette quality ${used}`
         warnings.push('PNG palette mode reduces the color count; compare visually.')
         break
@@ -188,7 +192,7 @@ async function optimizeVideo(
         '-c:a', 'aac', '-b:a', `${audioKbps}k`, '-movflags', '+faststart',
         scratch,
       ], { timeoutMs: ctx.timeoutMs, signal: ctx.signal })
-      await fs.copyFile(scratch, output)
+      await publishFileAtomic(scratch, output)
     } catch (err) {
       // Sources with broken DTS/timestamps (screen recordings, stitched clips)
       // can fail pass 2; point users at the normalize-then-optimize path.
@@ -209,12 +213,15 @@ async function optimizeVideo(
   return { videoKbps, audioKbps, durationSec }
 }
 
-/** Binary-search the highest encoder quality whose output fits the target. */
+/** Binary-search the highest encoder quality whose output fits the target.
+ * sharp cannot abort mid-encode, so cancellation is cooperative: the signal
+ * is checked between probe encodes and before anything is written. */
 async function optimizeQuality(
   input: string,
   targetBytes: number,
   output: string,
   format: 'jpg' | 'webp' | 'png',
+  ctx: ConvertContext,
 ): Promise<number> {
   const encode = async (quality: number): Promise<Buffer> => {
     const pipeline = sharp(input)
@@ -229,7 +236,7 @@ async function optimizeQuality(
   const floorBuffer = await encode(low)
   if (floorBuffer.length > targetBytes) {
     // Nothing fits: write the smallest variant and let the caller decide.
-    await fs.writeFile(output, floorBuffer)
+    await writeBestOrAbort(output, floorBuffer, ctx)
     return low
   }
 
@@ -238,6 +245,7 @@ async function optimizeQuality(
   let lo = low
   let hi = high
   while (hi - lo > 1) {
+    if (ctx.signal?.aborted) throw new OptimizeError(convertError('cancelled', 'Optimization cancelled.'))
     const mid = Math.floor((lo + hi) / 2)
     const buffer = await encode(mid)
     if (buffer.length <= targetBytes) {
@@ -248,8 +256,14 @@ async function optimizeQuality(
       hi = mid
     }
   }
-  await fs.writeFile(output, bestBuffer)
+  await writeBestOrAbort(output, bestBuffer, ctx)
   return bestQuality
+}
+
+/** Refuse to write once the conversion has been cancelled or timed out. */
+async function writeBestOrAbort(output: string, buffer: Buffer, ctx: ConvertContext): Promise<void> {
+  if (ctx.signal?.aborted) throw new OptimizeError(convertError('cancelled', 'Optimization cancelled.'))
+  await writeFileAtomic(output, buffer)
 }
 
 /** Ghostscript presets, coarse to fine; keep the smallest produced result. */
@@ -292,7 +306,7 @@ async function optimizePdf(
       })
       const size = (await fs.stat(attempt)).size
       if (size <= targetBytes) {
-        await fs.copyFile(attempt, output)
+        await publishFileAtomic(attempt, output)
         return { detail: `ghostscript ${preset.name}`, warnings: [] }
       }
       if (size < smallestSize) {
@@ -304,7 +318,7 @@ async function optimizePdf(
 
     // The screen preset (smallest) is still above the target; keep it with
     // an honest warning.
-    await fs.copyFile(smallestFile, output)
+    await publishFileAtomic(smallestFile, output)
     return {
       detail: 'ghostscript screen (72 dpi)',
       warnings: [

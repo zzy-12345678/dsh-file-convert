@@ -1,3 +1,14 @@
+## [0.4.8] - 2026-10-24
+
+### Changed
+
+- Officially target DeepSeek Harness Desktop 0.2.1-rc.3 and its `@deepseek-ai/dsh-tools` 0.2.1-rc.3 runtime (API-identical to rc.2; version pins only, refreshed lockfile).
+
+### Fixed
+
+- Atomic final-path writes everywhere: binary downloads into the plugin cache, ffmpeg media output, LibreOffice/pdf2docx products and every `optimize_file` branch (no-op copy, two-pass video, quality search, Ghostscript presets) now publish through a sibling-temp + rename. An abort, timeout or crash can no longer leave a half-written file at the final path; ffmpeg encodes name the muxer explicitly since the `.tmp` scratch suffix is not inferable.
+- Cancellation now actually stops the pure-JS paths: in-flight PDF page renders are cancelled through pdf.js render tasks, tesseract.js recognition stops by terminating its worker, and sharp/data/optimizer pipelines check the signal at every step boundary and never write output after an abort. A single synchronous step (one sharp encode, one `JSON.parse`) still cannot be interrupted mid-flight - README wording now states exactly what `timeoutMs` stops.
+
 ## [0.4.7] - 2026-10-18
 
 ### Changed

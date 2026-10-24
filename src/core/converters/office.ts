@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { ExecError, execTool } from '../utils/exec.js'
+import { publishFileAtomic } from '../utils/write-file.js'
 import { convertError } from '../errors.js'
 import type {
   BinaryDependency,
@@ -116,7 +117,7 @@ export class OfficeConverter implements Converter {
             hint: 'The document may be corrupt or password-protected; open it once in LibreOffice to check.',
           }))
         }
-        await fs.copyFile(produced, req.output)
+        await publishFileAtomic(produced, req.output)
         return {
           ok: true,
           input: req.input,
@@ -211,10 +212,7 @@ export class PdfToDocxConverter implements Converter {
         if (!(await exists(scratch))) {
           return fail(req, convertError('conversion_failed', 'pdf2docx reported success but produced no file.'))
         }
-        await fs.rename(scratch, req.output).catch(async () => {
-          await fs.copyFile(scratch, req.output)
-          await fs.rm(scratch, { force: true })
-        })
+        await publishFileAtomic(scratch, req.output)
       } finally {
         await fs.rm(scratch, { force: true }).catch(() => undefined)
       }

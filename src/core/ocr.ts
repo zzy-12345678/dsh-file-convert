@@ -110,6 +110,24 @@ export class OcrLanguageMissingError extends Error {
   }
 }
 
+/** Thrown when recognition stops because the conversion was aborted. */
+export class OcrCancelledError extends Error {
+  constructor() {
+    super('OCR recognition cancelled.')
+  }
+}
+
+async function terminateWorker(lang: string): Promise<void> {
+  const pending = jsWorkers.get(lang)
+  jsWorkers.delete(lang)
+  if (!pending) return
+  try {
+    await (await pending).terminate()
+  } catch {
+    /* worker creation failed earlier; nothing to terminate */
+  }
+}
+
 /**
  * Pick an OCR engine: a locally installed Tesseract CLI first (fast, uses the
  * system's trained language data), then the bundled tesseract.js as a pure-npm
@@ -153,10 +171,29 @@ export async function resolveOcrEngine(resolve: (dep: BinaryDependency) => Promi
   logger.debug('ocr engine: tesseract.js (bundled fallback)')
   return {
     name: 'tesseract.js',
-    async recognizePng(png, lang) {
+    async recognizePng(png, lang, ctx) {
+      const signal = ctx.signal
+      if (signal?.aborted) throw new OcrCancelledError()
       const worker = await jsWorker(lang)
-      const { data } = await worker.recognize(png)
-      return data.text
+      // tesseract.js has no abort API: racing the recognition against the
+      // signal and terminating the worker stops the underlying job for real.
+      // Terminating also drops the worker from the cache, so the next call
+      // simply recreates it.
+      let onAbort = () => {}
+      const cancelled = new Promise<never>((_, reject) => {
+        onAbort = () => {
+          void terminateWorker(lang)
+          reject(new OcrCancelledError())
+        }
+      })
+      signal?.addEventListener('abort', onAbort, { once: true })
+      const work = worker.recognize(png).then(({ data }) => data.text)
+      work.catch(() => undefined) // stay silent when we bail via cancellation
+      try {
+        return await Promise.race([work, cancelled])
+      } finally {
+        signal?.removeEventListener('abort', onAbort)
+      }
     },
   }
 }

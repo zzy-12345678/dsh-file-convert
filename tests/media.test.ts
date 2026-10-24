@@ -3,22 +3,17 @@ import { promisify } from 'node:util'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { createRouter, detectFile } from '../src/core/index.js'
+import { createRouter, detectFile, resolveBinary, FFMPEG } from '../src/core/index.js'
 import { tmpDir } from './helpers.js'
 
 const run = promisify(execFile)
 const NULL_LOGGER = { debug() {}, info() {}, warn() {}, error() {} }
 
-async function hasBinary(command: string): Promise<boolean> {
-  try {
-    await run(process.platform === 'win32' ? 'where' : 'which', [command])
-    return true
-  } catch {
-    return false
-  }
-}
-
-const FFMPEG_AVAILABLE = await hasBinary('ffmpeg')
+// Resolve exactly like the router does (PATH, known install locations and the
+// plugin cache), so the suite also runs on machines that only have the
+// downloaded cache binary - a plain `where ffmpeg` misses those.
+const FFMPEG_PATH = await resolveBinary(FFMPEG, {}, NULL_LOGGER)
+const FFMPEG_AVAILABLE = FFMPEG_PATH !== null
 const describeIfFfmpeg = FFMPEG_AVAILABLE ? describe : describe.skip
 
 if (!FFMPEG_AVAILABLE) {
@@ -34,7 +29,7 @@ describeIfFfmpeg('media conversions (ffmpeg)', () => {
 
   async function generate(dir: string, name: string, extraArgs: string[] = []): Promise<string> {
     const file = path.join(dir, name)
-    await run('ffmpeg', [
+    await run(FFMPEG_PATH as string, [
       '-hide_banner', '-loglevel', 'error', '-y',
       '-f', 'lavfi', '-i', 'testsrc=duration=1:size=128x96:rate=10',
       '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1',

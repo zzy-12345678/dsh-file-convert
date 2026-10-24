@@ -13,6 +13,8 @@ const CONFIG: Config = {
   maxInputMb: 2048,
   maxPdfPages: 200,
   maxOutputPixels: 16_000_000,
+  uiAutoStart: false,
+  uiTimeoutMin: 30,
 }
 
 const EXPECTED_NAMES = [
@@ -23,6 +25,7 @@ const EXPECTED_NAMES = [
   'optimize_file',
   'install_media_dependencies',
   'install_ocr_dependencies',
+  'open_ui',
 ]
 
 const VALID_ARGS: Record<string, Record<string, unknown>> = {
@@ -33,6 +36,7 @@ const VALID_ARGS: Record<string, Record<string, unknown>> = {
   optimize_file: { input: 'C:/input.pdf', target_size_mb: 1 },
   install_media_dependencies: {},
   install_ocr_dependencies: {},
+  open_ui: {},
 }
 
 function loadDefinitions(): ToolDefinition[] {
@@ -68,7 +72,7 @@ describe('DeepSeek Harness 0.2.1 compatibility', () => {
     expect(manifest.engines?.node).toBe('^22.19.0 || >=24.0.0')
   })
 
-  it('registers seven canonical-output definitions for the new tool runtime', () => {
+  it('registers eight canonical-output definitions for the new tool runtime', () => {
     const definitions = loadDefinitions()
     expect(definitions.map((definition) => definition.name)).toEqual(EXPECTED_NAMES)
 

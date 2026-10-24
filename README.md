@@ -6,11 +6,11 @@ Convert images, PDFs and data files directly inside your DSH agent sessions — 
 
 > **Unofficial community plugin.** Not affiliated with or endorsed by DeepSeek.
 
-> **Compatibility:** v0.4.8+ targets DeepSeek Harness Desktop 0.2.1-rc.3 and its canonical-output tool API. Node.js `^22.19.0 || >=24.0.0` is required.
+> **Compatibility:** v0.5.0+ targets DeepSeek Harness Desktop 0.2.1-rc.3 and its canonical-output tool API. Node.js `^22.19.0 || >=24.0.0` is required.
 
 ## Why
 
-Agents constantly need file conversions: "turn this PDF into images", "give me that JSON as YAML", "convert all JPGs in this folder to WebP". Instead of shelling out or pasting data around, `dsh-file-convert` gives your agent seven purpose-built tools backed by battle-tested local libraries.
+Agents constantly need file conversions: "turn this PDF into images", "give me that JSON as YAML", "convert all JPGs in this folder to WebP". Instead of shelling out or pasting data around, `dsh-file-convert` gives your agent eight purpose-built tools backed by battle-tested local libraries.
 
 - ✅ **Local execution** — files never leave the machine
 - ✅ **No API key, no server, no conversion tokens**
@@ -76,9 +76,9 @@ cd dsh-file-convert && npm install && npm run build
 dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 ```
 
-Then restart DSH (`dsh web` or your usual entry point). All seven tools appear automatically.
+Then restart DSH (`dsh web` or your usual entry point). All eight tools appear automatically.
 
-## The seven tools
+## The eight tools
 
 ### `convert_file`
 
@@ -161,6 +161,33 @@ Downloads the tesseract.js language data (about 10-30 MB per language, `chi_sim+
 
 All 26 conversions with their live availability on *this* machine — unavailable rows name the missing tool and how to install it. Images, PDF and data rows are usable out of the box; media, office and PDF-compression rows depend on the optional tools (media can even be set up by the agent via `install_media_dependencies`).
 
+### `open_ui`
+
+Open the local drag-and-drop web UI from inside a DSH session. The first call starts the server inside the plugin process and opens the browser; later calls return the running URL without starting anything twice. In DSH Desktop the converter is also always available as a native "文件转换" tab in the conversation view — `open_ui` is only needed when you want it in a separate browser window.
+
+```json
+{}
+```
+
+```
+dsh-file-convert UI is running at http://127.0.0.1:5757/ (opened in your browser; ...)
+```
+
+## Local web UI (drag & drop)
+
+The engine ships with a zero-dependency web app: drag files into the browser, pick a target format, download the result. Everything runs on your machine. It is available two ways:
+
+- **Native in DSH Desktop** (default): the plugin mounts the app at `/dsh-file-convert` on the DSH web server and injects a client bundle that adds a "文件转换" tab to the conversation view — click the tab and the converter appears in place, no extra server. The iframe talks to the same origin, and the DSH host's own gate protects it.
+- **Standalone** (`npm run ui`, or ask the agent to call `open_ui`): its own server on `http://127.0.0.1:5757` (walks up to the next free port if taken), gated by a random per-session token. Useful outside DSH or when you want the converter in a normal browser window.
+
+Feature parity in both modes:
+
+- **Drag & drop** files (or click to browse); jobs queue one by one with upload progress, warnings and per-file download links. Multi-page PDFs produce one download per page.
+- The target-format picker is driven by the live capability matrix (the same data as `list_conversions`), so unavailable pairs are hidden and the real detected input format corrects a wrong guess after the first attempt.
+- Closing the tab mid-conversion aborts the underlying work (the same true-cancellation semantics as the tools).
+- Standalone security: binds to `127.0.0.1` only and refuses any other interface; every API call requires a random per-session token.
+- Standalone flags: `--port` (default 5757), `--no-open`, `--timeout-min` (default 30 per conversion), `--max-upload-mb` (default 2048).
+
 ## Plugin config
 
 | Key | Default | Meaning |
@@ -171,6 +198,8 @@ All 26 conversions with their live availability on *this* machine — unavailabl
 | `maxInputMb` | `2048` | Refuse inputs above this size (MB) |
 | `maxPdfPages` | `200` | Full-document PDF rasterization refuses more pages; use `pages` for larger documents |
 | `maxOutputPixels` | `16000000` | Clamp rasterized pixels per page (width × height) to this budget |
+| `uiAutoStart` | `false` | Start the web UI as soon as the plugin loads (otherwise the agent starts it on demand via `open_ui`) |
+| `uiTimeoutMin` | `30` | Per-conversion deadline inside the web UI (longer than `timeoutMs` because UI users convert long videos) |
 
 **Limit coverage**: `maxInputMb` applies to convert, batch, inspect and optimize alike; `maxPdfPages` applies to PDF rasterization and text extraction (both implicit full-document runs and explicit `pages` selections); `maxOutputPixels` applies to PDF rasterization, OCR rendering and SVG rasterization.
 
@@ -191,7 +220,7 @@ All 26 conversions with their live availability on *this* machine — unavailabl
      (thin DSH glue:                (no DSH imports)       testable standalone
       name/inject/apply,                 │
       Config schema,                ConversionRouter
-      7 tool registrations)              │
+      8 tool registrations)              │
                        ┌─────────────────┼─────────────────┐
                        ↓                 ↓                 ↓
                  ImageConverter     PdfConverter      DataConverter
@@ -213,7 +242,7 @@ All 26 conversions with their live availability on *this* machine — unavailabl
 ```sh
 npm install
 npm run build     # tsc -> lib/
-npm test          # vitest, 90 tests (plus environment-gated suites)
+npm test          # vitest, 105 tests (plus environment-gated suites)
 npm run smoke     # end-to-end against lib/
 ```
 

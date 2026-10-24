@@ -33,6 +33,10 @@ export interface Config {
   maxPdfPages: number
   /** Clamp rasterized pixels per page (width x height) to this budget. */
   maxOutputPixels: number
+  /** Start the local drag-and-drop web UI as soon as the plugin loads. */
+  uiAutoStart: boolean
+  /** Per-conversion deadline inside the web UI (minutes; longer than the tools' timeoutMs by default). */
+  uiTimeoutMin: number
 }
 
 export const Config: Schema<Config> = Schema.object({
@@ -50,4 +54,6 @@ export const Config: Schema<Config> = Schema.object({
   maxInputMb: Schema.number().min(1).default(2048).description('Refuse inputs above this size (MB).'),
   maxPdfPages: Schema.number().min(1).default(200).description('Full-document PDF rasterization refuses to exceed this page count; use pages for larger documents.'),
   maxOutputPixels: Schema.number().min(100_000).default(16_000_000).description('Clamp rasterized pixels per page (width x height) to this budget.'),
+  uiAutoStart: Schema.boolean().default(false).description('Start the local drag-and-drop web UI as soon as the plugin loads (use open_ui to start it on demand instead).'),
+  uiTimeoutMin: Schema.number().min(1).default(30).description('Per-conversion deadline inside the web UI, in minutes. Defaults higher than the tools timeout because UI users convert long videos.'),
 })

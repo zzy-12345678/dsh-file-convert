@@ -6,11 +6,11 @@
 
 > **非官方社区插件。** 与 DeepSeek 官方无隶属关系。
 
-> **兼容性：** v0.4.8 起正式适配 DeepSeek Harness Desktop 0.2.1-rc.3 及其规范输出工具 API，需要 Node.js `^22.19.0 || >=24.0.0`。
+> **兼容性：** v0.5.0 起正式适配 DeepSeek Harness Desktop 0.2.1-rc.3 及其规范输出工具 API，需要 Node.js `^22.19.0 || >=24.0.0`。
 
 ## 为什么做这个
 
-Agent 日常需要各种格式转换："把这个 PDF 转成图片"、"把这个 JSON 变成 YAML"、"把文件夹里所有 JPG 转成 WebP"。`dsh-file-convert` 提供七个专用 tool，背后是久经考验的本地库，你只需用自然语言提需求。
+Agent 日常需要各种格式转换："把这个 PDF 转成图片"、"把这个 JSON 变成 YAML"、"把文件夹里所有 JPG 转成 WebP"。`dsh-file-convert` 提供八个专用 tool，背后是久经考验的本地库，你只需用自然语言提需求。
 
 - ✅ **本地执行** —— 文件不出机器
 - ✅ **不要 API Key、不要服务器、不耗转换 Token**
@@ -78,9 +78,9 @@ cd dsh-file-convert && npm install && npm run build
 dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 ```
 
-重启 DSH（`dsh web` 或你的常规入口）后，七个 tool 自动出现。
+重启 DSH（`dsh web` 或你的常规入口）后，八个 tool 自动出现。
 
-## 七个 Tool
+## 八个 Tool
 
 ### `convert_file` —— 单文件转换
 
@@ -141,6 +141,33 @@ PDF 走 Ghostscript 三档预设（printer/ebook/screen）自动迭代：某档�
 
 列出全部 26 种转换在当前机器上的实时可用状态；某项不可用时，明确指出缺哪个外部工具并给出安装提示。图片/PDF/数据类开箱即用，音视频、Office、PDF 压缩依赖可选工具（媒体依赖还能由 Agent 经 `install_media_dependencies` 自动补齐）。
 
+### `open_ui`
+
+在 DSH 会话里打开本地拖拽转换网页。首次调用会在插件进程内启动 UI 服务器并打开浏览器；再次调用直接返回已运行实例的地址，不会重复起进程。在 DSH Desktop 里转换器还常驻为会话视图中的「文件转换」标签页——`open_ui` 只在你想用独立浏览器窗口时才需要。
+
+```json
+{}
+```
+
+```
+dsh-file-convert UI is running at http://127.0.0.1:5757/ (opened in your browser; ...)
+```
+
+## 本地 Web UI（拖拽转换）
+
+引擎自带一个零依赖的网页应用：把文件拖进浏览器、选目标格式、下载结果，全程不出本机。有两种打开方式：
+
+- **DSH Desktop 原生集成**（默认）：插件把应用挂载到 DSH Web 服务器的 `/dsh-file-convert` 路径，并注入客户端 bundle，在会话视图里添加一个「文件转换」标签页——点开即用，无需额外服务器；iframe 与宿主同源，由 DSH 自身的访问控制保护。
+- **独立运行**（`npm run ui`，或让 Agent 调用 `open_ui`）：独立服务器 `http://127.0.0.1:5757`（端口被占用时自动顺延），由随机会话 token 保护。适合在 DSH 之外或想在普通浏览器窗口使用时。
+
+两种模式功能一致：
+
+- **拖入文件**（或点击选择）即可转换；任务逐个排队，显示上传进度、警告信息与逐文件下载链接。多页 PDF 按页生成多个下载。
+- 目标格式下拉框由实时能力矩阵（与 `list_conversions` 同源数据）驱动：不可用的组合不会出现，首次尝试后真实检测出的输入格式会纠正错误猜测。
+- 转换中关闭标签页会真正中止底层工作（与工具相同的真取消语义）。
+- 独立模式安全默认值：只绑定 `127.0.0.1`，拒绝其他网卡；所有 API 都需要随机会话 token。
+- 独立模式启动参数：`--port`（默认 5757）、`--no-open`、`--timeout-min`（默认 30 分钟/次）、`--max-upload-mb`（默认 2048）。
+
 ## 插件配置
 
 | 键 | 默认值 | 说明 |
@@ -151,6 +178,8 @@ PDF 走 Ghostscript 三档预设（printer/ebook/screen）自动迭代：某档�
 | `maxInputMb` | `2048` | 拒绝超过此大小（MB）的输入 |
 | `maxPdfPages` | `200` | 整本 PDF 光栅化超过此页数即拒绝；更大的文档请用 `pages` 选择 |
 | `maxOutputPixels` | `16000000` | 每页光栅化像素（宽 × 高）钳制到此预算 |
+| `uiAutoStart` | `false` | 插件加载时立即启动本地 Web UI（否则由 Agent 按需经 `open_ui` 启动） |
+| `uiTimeoutMin` | `30` | Web UI 内单次转换的超时（分钟；默认比 `timeoutMs` 宽，因为 UI 用户常转长视频） |
 
 **限制覆盖范围**：`maxInputMb` 作用于 convert / batch / inspect / optimize 全部入口；`maxPdfPages` 作用于 PDF 光栅化与文本提取（隐式整本与显式 `pages` 选择都受限）；`maxOutputPixels` 作用于 PDF 光栅化、OCR 渲染和 SVG 光栅化。
 
@@ -171,7 +200,7 @@ PDF 走 Ghostscript 三档预设（printer/ebook/screen）自动迭代：某档�
      （薄胶水层：                     （不 import DSH）       可独立测试
       name/inject/apply、                 │
       Config schema、               ConversionRouter
-      7 个 tool 注册）                    │
+      8 个 tool 注册）                    │
                        ┌─────────────────┼─────────────────┐
                        ↓                 ↓                 ↓
                  ImageConverter     PdfConverter      DataConverter
@@ -193,7 +222,7 @@ PDF 走 Ghostscript 三档预设（printer/ebook/screen）自动迭代：某档�
 ```sh
 npm install
 npm run build     # tsc -> lib/
-npm test          # vitest，90 项测试（另有个位数按环境门控的套件）
+npm test          # vitest，105 项测试（另有个位数按环境门控的套件）
 npm run smoke     # 针对 lib/ 的端到端冒烟测试
 ```
 

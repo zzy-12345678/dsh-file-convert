@@ -45,7 +45,7 @@ describe('pdf conversions', () => {
     await expect(fs.access(path.join(dir, 'doc-2.jpg'))).resolves.toBeUndefined()
     if (result.ok) {
       expect(result.outputs).toHaveLength(2)
-      expect(result.warnings.join(' ')).toMatch(/2 pages/)
+      expect(result.warnings.join(' ')).toMatch(/PDF 共 2 页/)
     }
   })
 

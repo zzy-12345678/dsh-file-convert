@@ -1,3 +1,21 @@
+## [0.5.0] - 2026-10-24
+
+### Added
+
+- Local web UI (`npm run ui`): drag & drop files in the browser, pick a target from the live capability matrix, download the results. Zero new dependencies (Node `http` plus one static page); binds to `127.0.0.1` with a random per-session token, streams uploads to a private per-instance workspace, and aborts the underlying conversion when the tab closes mid-job.
+- `open_ui` tool: hosts the same UI inside the plugin process and returns its URL; the first call opens the browser, later calls reuse the running server. New config keys `uiAutoStart` (start on plugin load) and `uiTimeoutMin` (per-conversion deadline inside the UI, default 30 min).
+- Native DSH Desktop integration (modeled on dsh-plugin-beyond-simulator): the plugin consumes the host `webServer` service and mounts the converter at `/dsh-file-convert`, and a client bundle (package.json `dsh.client` + the `./client` export, loaded via `window.__ModuleLoader__`) adds a "文件转换" tab to the conversation view that embeds the converter in place. The standalone server remains as the fallback for use outside DSH.
+
+### Changed
+
+- User-facing text is Chinese-first: the web UI, conversion warnings (multi-page notes, OCR, format-detection conflicts, the experimental PDF→DOCX notice) and a Chinese headline for every failure surfaced in the UI; the raw error message stays as technical detail and tool-plane messages stay English for the agent.
+
+### Fixed
+
+- The UI's Origin guard compared against a portless base URL, so every browser-initiated conversion was rejected with 403 while page loads worked; it now compares against the request's Host header and tolerates loopback spellings (127.0.0.1 / localhost / [::1]). A stale page also reloads itself once to pick up a fresh session token.
+- Hosting the UI twice (host reload, extra scopes) registered a duplicate prefix route, which the host treats as a fatal load failure and took the whole desktop down; the mount is now a process-level singleton claimed synchronously, the register call is duplicate-tolerant, and applies are covered by an idempotency test.
+- The hosted page addressed its API at the origin root instead of the mount prefix, so the capability matrix (and the target-format picker with it) failed to load; the base path is now injected into the page and all requests and download links carry it.
+
 ## [0.4.8] - 2026-10-24
 
 ### Changed

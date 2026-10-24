@@ -34,7 +34,7 @@ describe('detectFile', () => {
     const outcome = await detectFile(png)
     expect(outcome.detection.format).toBe('png')
     expect(outcome.detection.confidence).toBe('magic')
-    expect(outcome.warnings.join(' ')).toMatch(/extension suggests jpg/i)
+    expect(outcome.warnings.join(' ')).toMatch(/扩展名指向 jpg/)
   })
 
   it('falls back to the extension for text formats', async () => {
@@ -58,7 +58,7 @@ describe('detectFile', () => {
     const outcome = await detectFile(file)
     expect(outcome.detection.format).toBe('json')
     expect(outcome.detection.confidence).toBe('magic')
-    expect(outcome.warnings.join(' ')).toMatch(/extension suggests txt/i)
+    expect(outcome.warnings.join(' ')).toMatch(/扩展名指向 txt/)
   })
 
   it('detects extension-less JSON', async () => {

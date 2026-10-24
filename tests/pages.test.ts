@@ -43,7 +43,7 @@ describe('pdf conversions with pages option', () => {
     await expect(fs.access(path.join(dir, 'doc-2.png'))).rejects.toThrow()
     if (result.ok) {
       expect(result.outputs).toHaveLength(2)
-      expect(result.warnings.join(' ')).toMatch(/page\(s\) 1, 3 of 3/)
+      expect(result.warnings.join(' ')).toMatch(/第 1, 3 页（共 3 页/)
     }
   })
 

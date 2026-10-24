@@ -55,7 +55,7 @@ describeIfTesseract('ocr (pdf -> txt via local tesseract)', () => {
     if (result.ok) {
       const text = await fs.readFile(output, 'utf8')
       expect(text).toMatch(/Hello/i)
-      expect(result.warnings.join(' ')).toMatch(/OCR via tesseract-cli/)
+      expect(result.warnings.join(' ')).toMatch(/OCR 引擎：tesseract-cli/)
     }
   })
 
@@ -69,6 +69,6 @@ describeIfTesseract('ocr (pdf -> txt via local tesseract)', () => {
       { logger: NULL_LOGGER },
     )
     expect(result.ok).toBe(true)
-    if (result.ok) expect(result.warnings.join(' ')).toMatch(/text layer was detected/i)
+    if (result.ok) expect(result.warnings.join(' ')).toMatch(/检测到文本层/)
   })
 })

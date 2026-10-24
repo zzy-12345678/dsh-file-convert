@@ -225,7 +225,7 @@ export class PdfToDocxConverter implements Converter {
         bytesIn,
         bytesOut: (await fs.stat(req.output)).size,
         durationMs: Date.now() - started,
-        warnings: ['PDF → DOCX is experimental: complex layouts may shift; check the result.'],
+        warnings: ['PDF → DOCX 为实验性转换：文字位置按视觉坐标重建，复杂版式可能偏移；PDF 中的公式是排版字形而非公式对象，无法还原为 Word 公式，常常错位；多栏与精调表格同样会偏移。需要保真输出请改转 png/jpg。'],
       }
     } catch (err) {
       if (err instanceof ExecError) {

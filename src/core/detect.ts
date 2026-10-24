@@ -69,7 +69,7 @@ export async function detectFile(input: string): Promise<DetectOutcome> {
   if (detected) {
     if (extFormat && extFormat !== detected) {
       warnings.push(
-        `File extension suggests ${extFormat} but content is ${detected}; using ${detected}.`,
+        `文件扩展名指向 ${extFormat}，但内容是 ${detected}；按 ${detected} 处理。`,
       )
     }
     return {
@@ -83,7 +83,7 @@ export async function detectFile(input: string): Promise<DetectOutcome> {
   if (await isJsonContent(input)) {
     if (extFormat && extFormat !== 'json') {
       warnings.push(
-        `File extension suggests ${extFormat} but content parses as JSON; using json.`,
+        `文件扩展名指向 ${extFormat}，但内容是 JSON；按 json 处理。`,
       )
     }
     return { detection: { format: 'json', confidence: 'magic', mime: 'application/json' }, warnings }

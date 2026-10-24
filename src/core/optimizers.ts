@@ -101,7 +101,7 @@ export async function optimizeFile(
       case 'png': {
         const used = await optimizeQuality(input, targetBytes, output, 'png', ctx)
         detail = `png palette quality ${used}`
-        warnings.push('PNG palette mode reduces the color count; compare visually.')
+        warnings.push('PNG 调色板模式会减少颜色数量；请目视对比结果。')
         break
       }
       case 'pdf': {
@@ -322,7 +322,7 @@ async function optimizePdf(
     return {
       detail: 'ghostscript screen (72 dpi)',
       warnings: [
-        `Even the lowest preset exceeds the target (${Math.round(smallestSize / 1024)} KB produced); the smallest result was kept.`,
+        `即使最低档预设（screen）也超出目标（实际产出 ${Math.round(smallestSize / 1024)} KB）；已保留其中最小的结果。`,
       ],
     }
   } finally {

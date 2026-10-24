@@ -56,7 +56,7 @@ describeIfPdf2docx('pdf -> docx (experimental, python pdf2docx)', () => {
     if (!result.ok) return
 
     expect(result.bytesOut).toBeGreaterThan(0)
-    expect(result.warnings.join(' ')).toMatch(/experimental/i)
+    expect(result.warnings.join(' ')).toMatch(/实验性/)
 
     // The conversion must carry the text over, not just produce a file.
     const { unzipSync } = await import('fflate')

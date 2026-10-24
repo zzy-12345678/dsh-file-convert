@@ -200,12 +200,12 @@ export class PdfConverter implements Converter {
     }
 
     if (selected.length < totalPages) {
-      warnings.push(`Converted page(s) ${selected.join(', ')} of ${totalPages} (pages option).`)
+      warnings.push(`已转换第 ${selected.join(', ')} 页（共 ${totalPages} 页，由 pages 选择）。`)
     } else if (totalPages > 1) {
-      warnings.push(`PDF has ${totalPages} pages; wrote ${totalPages} files named <name>-<page>.${req.to}.`)
+      warnings.push(`PDF 共 ${totalPages} 页；已按 <名称>-<页码>.${req.to} 输出 ${totalPages} 个文件。`)
     }
     if (scaleReduced) {
-      warnings.push(`Raster scale was reduced on some pages to fit the pixel budget (maxOutputPixels).`)
+      warnings.push(`部分页面为满足像素预算（maxOutputPixels）降低了渲染比例。`)
     }
 
     return {
@@ -280,7 +280,7 @@ export class PdfConverter implements Converter {
         }))
       }
       if (pageTexts.some((t) => t.trim().length > 0)) {
-        warnings.push('A text layer was detected; OCR was used anyway because ocr: true.')
+        warnings.push('检测到文本层；因显式指定 ocr: true，仍执行了 OCR。')
       }
       // OCR needs legible pixels: default to a higher density than rasterization.
       const scale = Math.max((req.options.dpi ?? 200) / 72, 200 / 72)
@@ -297,10 +297,10 @@ export class PdfConverter implements Converter {
             const viewport = page.getViewport({ scale })
             const pixels = viewport.width * viewport.height
             if (pixels > maxOutputPixels) {
-              // Recognition quality suffers on tiny rasters, so clamp gently
-              // (2x the pixel budget) and say so.
-              renderScale = scale * Math.sqrt((maxOutputPixels * 2) / pixels)
-              warnings.push('OCR render scale was reduced on some pages to fit the pixel budget; recognition quality may drop.')
+            // Recognition quality suffers on tiny rasters, so clamp gently
+            // (2x the pixel budget) and say so.
+            renderScale = scale * Math.sqrt((maxOutputPixels * 2) / pixels)
+            warnings.push('部分页面为满足像素预算降低了 OCR 渲染比例；识别质量可能下降。')
             }
           }
           const png = await renderPage(page, renderScale, { to: 'png', quality: 100 }, ctx.signal)
@@ -316,11 +316,11 @@ export class PdfConverter implements Converter {
           page.cleanup()
         }
       }
-      warnings.push(`OCR via ${engine.name} (${ocrLang}); quality depends on scan quality.`)
+      warnings.push(`OCR 引擎：${engine.name}（语言 ${ocrLang}）；效果取决于扫描质量。`)
       pageTexts.length = 0
       pageTexts.push(...ocrTexts)
     } else if (pageTexts.every((t) => t.trim().length === 0)) {
-      warnings.push('No extractable text found - this may be a scanned PDF. Re-run with ocr: true.')
+      warnings.push('未提取到文本——可能是扫描版 PDF；可加 ocr: true 重试。')
     }
 
     const text = pageTexts.join('\n\n').replace(/\n{4,}/g, '\n\n\n') + '\n'

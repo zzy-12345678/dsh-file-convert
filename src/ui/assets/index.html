@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dsh-file-convert · 本地文件转换</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel-2: #1d212b; --border: #2a2f3d;
+    --text: #e8eaf0; --muted: #8b93a7; --accent: #4f8cff; --ok: #3fb968; --err: #e5534b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+    font: 14px/1.6 system-ui, "Segoe UI", "Microsoft YaHei", sans-serif;
+    display: flex; flex-direction: column; align-items: center; padding: 32px 16px 64px;
+  }
+  header { width: 100%; max-width: 860px; margin-bottom: 20px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h1 small { color: var(--muted); font-weight: 400; margin-left: 8px; font-size: 13px; }
+  #status-line { color: var(--muted); font-size: 13px; }
+  #drop {
+    width: 100%; max-width: 860px; border: 2px dashed var(--border); border-radius: 14px;
+    background: var(--panel); padding: 48px 24px; text-align: center; cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  #drop.hover, #drop:hover { border-color: var(--accent); background: var(--panel-2); }
+  #drop .icon { font-size: 40px; }
+  #drop .main { font-size: 16px; margin-top: 8px; }
+  #drop .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  #files { width: 100%; max-width: 860px; margin-top: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .name { font-weight: 600; word-break: break-all; }
+  .size { color: var(--muted); white-space: nowrap; }
+  select {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 10px; font-size: 13px; max-width: 240px;
+  }
+  button {
+    background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+    padding: 7px 14px; font-size: 13px; cursor: pointer;
+  }
+  button:disabled { background: var(--border); color: var(--muted); cursor: default; }
+  button.link { background: none; color: var(--accent); padding: 0; text-decoration: underline; }
+  .progress { height: 6px; background: var(--panel-2); border-radius: 4px; overflow: hidden; margin-top: 10px; display: none; }
+  .progress.on { display: block; }
+  .progress > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  .msg { margin-top: 8px; font-size: 13px; display: none; }
+  .msg.on { display: block; }
+  .msg.ok { color: var(--ok); }
+  .msg.err { color: var(--err); }
+  .msg.warn { color: #d29922; }
+  .msg.detail { color: var(--muted); }
+  .downloads { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .downloads a { color: var(--accent); text-decoration: none; font-size: 13px; word-break: break-all; }
+  .downloads a:hover { text-decoration: underline; }
+  footer { width: 100%; max-width: 860px; margin-top: 28px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>dsh-file-convert <small>本地优先 · 文件不出本机</small></h1>
+  <div id="status-line">正在加载能力矩阵…</div>
+</header>
+
+<div id="drop" role="button" aria-label="拖入或点击选择文件">
+  <div class="icon">📥</div>
+  <div class="main">把文件拖到这里</div>
+  <div class="sub">或点击选择文件 · 支持多选 · 一次转换一个，自动排队</div>
+</div>
+<input id="picker" type="file" multiple hidden>
+
+<div id="files"></div>
+
+<footer>
+  转换在本机完成（图片/PDF/数据开箱即用；音视频/Office/PDF 压缩依赖本机已安装的 ffmpeg / LibreOffice / Ghostscript）。
+  上传仅发送到本机 127.0.0.1 服务，超时上限与大小限制见服务端配置。
+</footer>
+
+<script>
+const TOKEN = '__DSH_UI_TOKEN__';
+/** Mount prefix of this UI ('' when served standalone at the origin root). */
+const BASE = '__DSH_UI_BASE__';
+const drop = document.getElementById('drop');
+const picker = document.getElementById('picker');
+const filesEl = document.getElementById('files');
+const statusLine = document.getElementById('status-line');
+
+/** All capability rows: { from, to, available, experimental, missing[] }. */
+let CAPS = [];
+/** Client-side default target per source format (first available wins otherwise). */
+const PREFERRED = { png: 'jpg', jpg: 'webp', webp: 'png', svg: 'png', pdf: 'png',
+  docx: 'pdf', pptx: 'pdf', xlsx: 'pdf', mp4: 'mp3', mov: 'mp4', wav: 'mp3',
+  json: 'yaml', yaml: 'json', csv: 'json' };
+
+/** 中文主文案：按错误码映射；英文原始 message 作为技术细节展示。 */
+const CODE_TEXT = {
+  unsupported_conversion: '不支持的转换',
+  missing_dependency: '缺少外部依赖',
+  invalid_input: '输入无效',
+  output_exists: '输出文件已存在',
+  timeout: '转换超时',
+  cancelled: '已取消',
+  conversion_failed: '转换失败',
+};
+
+const queue = [];
+let running = false;
+
+function fmtBytes(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+  if (n < 1073741824) return (n / 1048576).toFixed(1) + ' MB';
+  return (n / 1073741824).toFixed(2) + ' GB';
+}
+
+function extOf(name) {
+  const m = /\.([a-z0-9]+)$/i.exec(name);
+  if (!m) return '';
+  const e = m[1].toLowerCase();
+  return { jpeg: 'jpg', yml: 'yaml', htm: 'html' }[e] || e;
+}
+
+/** A stale page (server restarted) holds an old token; reload once to pick up a fresh one. */
+function reloadForFreshToken() {
+  if (sessionStorage.getItem('dsh-ui-stale')) return false;
+  sessionStorage.setItem('dsh-ui-stale', '1');
+  location.reload();
+  return true;
+}
+
+async function loadCaps() {
+  const res = await fetch(BASE + '/api/conversions', { headers: { 'x-dsh-token': TOKEN } });
+  if (res.status === 403 && reloadForFreshToken()) return;
+  const data = await res.json();
+  CAPS = data.conversions || [];
+  const available = CAPS.filter(c => c.available).length;
+  statusLine.textContent = `共 ${CAPS.length} 种转换，本机可用 ${available} 种 · 单次超时 ${data.limits?.timeoutMinutes ?? 30} 分钟 · 上限 ${fmtBytes(data.limits?.maxUploadBytes ?? 0)}`;
+  sessionStorage.removeItem('dsh-ui-stale');
+}
+
+function targetOptions(fromGuess) {
+  const groups = new Map();
+  for (const cap of CAPS) {
+    if (!groups.has(cap.from)) groups.set(cap.from, []);
+    groups.get(cap.from).push(cap);
+  }
+  const build = () => {
+    const parts = [];
+    for (const [from, caps] of groups) {
+      const opts = caps.filter(c => c.available)
+        .map(c => `<option value="${from}>${c.to}">${from} → ${c.to}${c.experimental ? '（实验）' : ''}</option>`)
+        .join('');
+      parts.push(`<optgroup label="源格式 ${from}">${opts}</optgroup>`);
+    }
+      return `<option value="" disabled selected>选择目标格式</option>` + parts.join('');
+  };
+  const sel = document.createElement('select');
+  sel.innerHTML = build();
+  const preferred = PREFERRED[fromGuess];
+  const guessed = preferred && CAPS.some(c => c.from === fromGuess && c.to === preferred && c.available);
+  if (guessed) sel.value = `${fromGuess}>${preferred}`;
+  return sel;
+}
+
+function addFiles(list) {
+  for (const file of list) {
+    if (!file) continue;
+    const card = document.createElement('div');
+    card.className = 'card';
+    const name = file.name;
+    card.innerHTML = `
+      <div class="row">
+        <span class="name"></span><span class="size">${fmtBytes(file.size)}</span>
+        <span class="spacer" style="flex:1"></span>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <span class="target-slot"></span>
+        <button class="go">开始转换</button>
+        <button class="remove link">移除</button>
+      </div>
+      <div class="progress"><div></div></div>
+      <div class="msg"></div>
+      <div class="downloads"></div>`;
+    card.querySelector('.name').textContent = name;
+    const slot = card.querySelector('.target-slot');
+    const sel = targetOptions(extOf(name));
+    slot.replaceWith(sel);
+    const msg = card.querySelector('.msg');
+    const progress = card.querySelector('.progress');
+    const bar = progress.firstElementChild;
+    const downloads = card.querySelector('.downloads');
+    const goBtn = card.querySelector('.go');
+    const state = { file, card, sel, msg, progress, bar, downloads, goBtn };
+
+    goBtn.addEventListener('click', () => {
+      if (!sel.value) { show(msg, '请先选择目标格式。', 'err'); return; }
+      const to = sel.value.split('>')[1];
+      show(msg, '排队中…', '');
+      goBtn.disabled = true;
+      queue.push({ ...state, to });
+      pump();
+    });
+    card.querySelector('.remove').addEventListener('click', () => card.remove());
+    filesEl.appendChild(card);
+  }
+}
+
+function show(el, text, kind) {
+  el.textContent = text;
+  el.className = 'msg on' + (kind ? ' ' + kind : '');
+}
+
+function pump() {
+  if (running) return;
+  const job = queue.shift();
+  if (!job) return;
+  running = true;
+  convert(job).finally(() => { running = false; pump(); });
+}
+
+function convert(job) {
+  return new Promise((resolve) => {
+    const { file, card, sel, msg, progress, bar, downloads, goBtn, to } = job;
+    const fail = (main, detail) => {
+      progress.classList.remove('on');
+      card.querySelector('.raw-detail')?.remove();
+      show(msg, main, 'err');
+      if (detail) {
+        const raw = document.createElement('div');
+        raw.className = 'msg on detail raw-detail';
+        raw.textContent = detail;
+        card.appendChild(raw);
+      }
+      goBtn.disabled = false;
+      resolve();
+    };
+    show(msg, '上传中 0%', '');
+    progress.classList.add('on');
+    bar.style.width = '0%';
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', BASE + `/api/convert?name=${encodeURIComponent(file.name)}&to=${encodeURIComponent(to)}`);
+    xhr.setRequestHeader('x-dsh-token', TOKEN);
+    xhr.responseType = 'json';
+    xhr.upload.onprogress = (e) => {
+      if (!e.lengthComputable) return;
+      const pct = Math.round((e.loaded / e.total) * 100);
+      bar.style.width = pct + '%';
+      show(msg, `上传中 ${pct}%`, '');
+    };
+    xhr.upload.onload = () => show(msg, '转换中…', '');
+    xhr.onerror = () => fail('网络错误：本地服务无响应。');
+    xhr.onabort = () => fail('已取消。');
+    xhr.onload = () => {
+      if (xhr.status === 403 && reloadForFreshToken()) return;
+      progress.classList.remove('on');
+      const data = xhr.response || {};
+      if (xhr.status !== 200 && !data.ok) {
+        return fail(`服务错误（HTTP ${xhr.status}）`, data.error);
+      }
+      if (!data.ok) {
+        goBtn.disabled = false;
+        // The server reports the real detected source format; align the picker.
+        if (data.from) {
+          const wanted = `${data.from}>`;
+          const opt = [...sel.options].find(o => o.value.startsWith(wanted));
+          if (opt) { sel.value = opt.value; }
+        }
+        return fail(`${CODE_TEXT[data.code] || '转换失败'}：`, [data.message, data.hint].filter(Boolean).join(' '));
+      }
+      bar.style.width = '100%';
+      const links = data.files.map(f =>
+        `<a href="${f.url}" download>⬇ ${f.name}（${fmtBytes(f.bytes)}）</a>`).join('');
+      downloads.innerHTML = links;
+      const note = `完成：${data.from} → ${data.to}，${fmtBytes(data.bytesIn)} → ${fmtBytes(data.bytesOut)}，用时 ${(data.durationMs / 1000).toFixed(1)}s`;
+      show(msg, note, 'ok');
+      if (data.warnings && data.warnings.length) {
+        const w = document.createElement('div');
+        w.className = 'msg on warn';
+        w.textContent = '⚠ ' + data.warnings.join('；');
+        card.appendChild(w);
+      }
+      goBtn.disabled = true;
+      resolve();
+    };
+    xhr.send(file);
+  });
+}
+
+drop.addEventListener('click', () => picker.click());
+picker.addEventListener('change', () => { addFiles(picker.files); picker.value = ''; });
+for (const type of ['dragenter', 'dragover']) {
+  drop.addEventListener(type, (e) => { e.preventDefault(); drop.classList.add('hover'); });
+}
+for (const type of ['dragleave', 'drop']) {
+  drop.addEventListener(type, (e) => { e.preventDefault(); drop.classList.remove('hover'); });
+}
+drop.addEventListener('drop', (e) => {
+  if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files);
+});
+// Keep the page itself from navigating when a file misses the zone.
+for (const type of ['dragover', 'drop']) {
+  window.addEventListener(type, (e) => e.preventDefault());
+}
+
+loadCaps().catch(() => { statusLine.textContent = '无法加载能力矩阵（服务未就绪？）'; });
+</script>
+</body>
+</html>

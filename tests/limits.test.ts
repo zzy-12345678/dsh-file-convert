@@ -49,7 +49,7 @@ describe('resource limits', () => {
     const result = await router.convertFile({ input, outputFormat: 'png', output, dpi: 600 }, { logger: NULL_LOGGER })
     expect(result.ok).toBe(true)
     if (result.ok) {
-      expect(result.warnings.join(' ')).toMatch(/pixel budget/)
+      expect(result.warnings.join(' ')).toMatch(/像素预算/)
       const meta = await sharp(output).metadata()
       expect(meta.width! * meta.height!).toBeLessThanOrEqual(250_000)
     }

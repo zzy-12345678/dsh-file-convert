@@ -1,3 +1,9 @@
+## [0.5.1] - 2026-11-02
+
+### Changed
+
+- Officially target DeepSeek Harness Desktop 0.2.1-rc.5 and its `@deepseek-ai/dsh-tools` 0.2.1-rc.5 runtime, so the host's compatibility check no longer rejects the plugin. The tool API used here (canonical outputs, `defineTool`, `ctx.tools.register`) is unchanged versus rc.3 — this is a version-pin update, and the compatibility contract test now asserts the rc.5 peer.
+
 ## [0.5.0] - 2026-10-24
 
 ### Added

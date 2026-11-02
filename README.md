@@ -6,7 +6,7 @@ Convert images, PDFs and data files directly inside your DSH agent sessions — 
 
 > **Unofficial community plugin.** Not affiliated with or endorsed by DeepSeek.
 
-> **Compatibility:** v0.5.0+ targets DeepSeek Harness Desktop 0.2.1-rc.3 and its canonical-output tool API. Node.js `^22.19.0 || >=24.0.0` is required.
+> **Compatibility:** v0.5.1+ targets DeepSeek Harness Desktop 0.2.1-rc.5 and its canonical-output tool API. The `@deepseek-ai/dsh-tools` peer is pinned to the exact host runtime, so a DSH rc bump needs a matching plugin patch. Node.js `^22.19.0 || >=24.0.0` is required.
 
 ## Why
 
@@ -56,17 +56,18 @@ dsh plugin --profile default add github:zzy-12345678/dsh-file-convert
 ```
 
 Git installs may ask you to allow the build step in the profile's `pnpm-workspace.yaml`:
+
+```yaml
+allowBuilds:
+  dsh-file-convert: true
+```
+
 > **First-install note**: pnpm may also ask you to decide on a build script for `tesseract.js` (it only shows a donation notice — skipping is safe). Set it in the same file and re-run the install:
 >
 > ```yaml
 > allowBuilds:
 >   tesseract.js: false
 > ```
-
-```yaml
-allowBuilds:
-  dsh-file-convert: true
-```
 
 From a local checkout (e.g. while hacking on it):
 
@@ -200,14 +201,14 @@ Feature parity in both modes:
 | `maxOutputPixels` | `16000000` | Clamp rasterized pixels per page (width × height) to this budget |
 | `uiAutoStart` | `false` | Start the web UI as soon as the plugin loads (otherwise the agent starts it on demand via `open_ui`) |
 | `uiTimeoutMin` | `30` | Per-conversion deadline inside the web UI (longer than `timeoutMs` because UI users convert long videos) |
-
-**Limit coverage**: `maxInputMb` applies to convert, batch, inspect and optimize alike; `maxPdfPages` applies to PDF rasterization and text extraction (both implicit full-document runs and explicit `pages` selections); `maxOutputPixels` applies to PDF rasterization, OCR rendering and SVG rasterization.
-
-**What `timeoutMs` cancellation stops**: external binaries are killed mid-run (ffmpeg, LibreOffice, Ghostscript, Tesseract CLI); an in-flight PDF page render is cancelled through pdf.js's render task; tesseract.js recognition is stopped by terminating its worker; pure-JS pipelines (sharp encoding, JSON/YAML/CSV parsing) are interrupted at every step boundary and never write output after an abort. One large synchronous step (a single sharp encode or `JSON.parse`) cannot be interrupted mid-flight — its result is discarded instead of written. Every final-path write is atomic (sibling temp file + rename), so an aborted conversion never leaves a half-written file behind.
 | `batchMaxFiles` | `500` | Max files examined per `batch_convert` run; beyond it the summary reports what was skipped instead of silently capping |
 | `outputRoots` | `[]` | When non-empty, explicit `output` paths must resolve inside one of these directories (recommended for shared deployments; the default next-to-input output is always exempt) |
 | `ffmpegPath` / `ffprobePath` | - | Explicit binary paths when ffmpeg is not on PATH (common on Windows) |
 | `sofficePath` / `ghostscriptPath` / `pythonPath` / `tesseractPath` | - | Explicit paths for the optional tools, overriding auto-detection |
+
+**Limit coverage**: `maxInputMb` applies to convert, batch, inspect and optimize alike; `maxPdfPages` applies to PDF rasterization and text extraction (both implicit full-document runs and explicit `pages` selections); `maxOutputPixels` applies to PDF rasterization, OCR rendering and SVG rasterization.
+
+**What `timeoutMs` cancellation stops**: external binaries are killed mid-run (ffmpeg, LibreOffice, Ghostscript, Tesseract CLI); an in-flight PDF page render is cancelled through pdf.js's render task; tesseract.js recognition is stopped by terminating its worker; pure-JS pipelines (sharp encoding, JSON/YAML/CSV parsing) are interrupted at every step boundary and never write output after an abort. One large synchronous step (a single sharp encode or `JSON.parse`) cannot be interrupted mid-flight — its result is discarded instead of written. Every final-path write is atomic (sibling temp file + rename), so an aborted conversion never leaves a half-written file behind.
 
 ## Architecture
 
@@ -260,8 +261,8 @@ Add a conversion = add one capability row + implement it in a converter. Add a b
 
 | Component | Verified version |
 | --- | --- |
-| DeepSeek Harness Desktop | 0.2.1-rc.3 |
-| @deepseek-ai/dsh-tools | 0.2.1-rc.3 |
+| DeepSeek Harness Desktop | 0.2.1-rc.5 |
+| @deepseek-ai/dsh-tools | 0.2.1-rc.5 |
 | @deepseek-ai/cordis | 4.0.5 |
 | Node.js | `^22.19.0 \|\| >=24.0.0` (CI covers 22) |
 
@@ -272,6 +273,7 @@ DSH is a developer preview and its APIs will move - the plugin keeps all DSH imp
 - ~~V0.2 — Media (FFmpeg)~~ **shipped**: MP4→GIF/MP3, WAV→MP3, MOV→MP4, plus `optimize_file` with target-size two-pass encoding.
 - ~~V0.3 — Office + PDF tooling~~ **shipped**: DOCX/PPTX/XLSX→PDF via LibreOffice, experimental PDF→DOCX via python pdf2docx, PDF compression via Ghostscript; on-demand dependency downloads with an automatic CN mirror.
 - ~~V0.4 — OCR (Tesseract)~~ **shipped**: PDF→TXT supports `ocr: true` (optional `ocr_lang`), local Tesseract CLI first with the bundled tesseract.js as fallback, language data fetched explicitly via `install_ocr_dependencies`.
+- ~~V0.5 — Local web UI~~ **shipped**: drag & drop app with a live capability matrix, hosted natively in DSH Desktop as a "文件转换" conversation tab (`webServer` mount + client bundle) with a standalone `open_ui` fallback; Chinese-first user-facing text; true cancellation and atomic writes extended to every path.
 - Later: OCR → DOCX for scanned PDFs, conversion chains (PPTX→PDF→PNG), video downscaling in `optimize_file`, resize/rotate image options.
 
 ## License

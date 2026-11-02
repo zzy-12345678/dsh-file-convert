@@ -6,7 +6,7 @@
 
 > **非官方社区插件。** 与 DeepSeek 官方无隶属关系。
 
-> **兼容性：** v0.5.0 起正式适配 DeepSeek Harness Desktop 0.2.1-rc.3 及其规范输出工具 API，需要 Node.js `^22.19.0 || >=24.0.0`。
+> **兼容性：** v0.5.1 起适配 DeepSeek Harness Desktop 0.2.1-rc.5 及其规范输出工具 API。`@deepseek-ai/dsh-tools` peer 精确钉在宿主运行时版本上，因此 DSH 每升一个 rc，插件需要同步发一个补丁版本；需要 Node.js `^22.19.0 || >=24.0.0`。
 
 ## 为什么做这个
 
@@ -56,6 +56,12 @@ dsh plugin --profile default add github:zzy-12345678/dsh-file-convert
 ```
 
 Git 安装可能需要在 profile 的 `pnpm-workspace.yaml` 里放行构建步骤：
+
+```yaml
+allowBuilds:
+  dsh-file-convert: true
+```
+
 > **首次安装提示**：pnpm 还可能要求你决定 `tesseract.js` 的构建脚本是否执行（它只是捐赠提示，跳过毫无影响）。在同一个文件里加上：
 >
 > ```yaml
@@ -64,11 +70,6 @@ Git 安装可能需要在 profile 的 `pnpm-workspace.yaml` 里放行构建步�
 > ```
 >
 > 然后重新执行安装命令即可。
-
-```yaml
-allowBuilds:
-  dsh-file-convert: true
-```
 
 本地开发安装：
 
@@ -180,14 +181,14 @@ dsh-file-convert UI is running at http://127.0.0.1:5757/ (opened in your browser
 | `maxOutputPixels` | `16000000` | 每页光栅化像素（宽 × 高）钳制到此预算 |
 | `uiAutoStart` | `false` | 插件加载时立即启动本地 Web UI（否则由 Agent 按需经 `open_ui` 启动） |
 | `uiTimeoutMin` | `30` | Web UI 内单次转换的超时（分钟；默认比 `timeoutMs` 宽，因为 UI 用户常转长视频） |
-
-**限制覆盖范围**：`maxInputMb` 作用于 convert / batch / inspect / optimize 全部入口；`maxPdfPages` 作用于 PDF 光栅化与文本提取（隐式整本与显式 `pages` 选择都受限）；`maxOutputPixels` 作用于 PDF 光栅化、OCR 渲染和 SVG 光栅化。
-
-**`timeoutMs` 取消的真实覆盖面**：外部二进制进程会被当场终止（ffmpeg、LibreOffice、Ghostscript、Tesseract CLI）；进行中的 PDF 页面渲染通过 pdf.js 渲染任务取消；tesseract.js 识别通过终止 worker 真正停止；纯 JS 流程（sharp 编码、JSON/YAML/CSV 解析）在每个步骤边界被中断，且中止后绝不写出输出文件。单个较大的同步步骤（一次 sharp 编码或一次 `JSON.parse`）无法在中途打断，但其结果会被丢弃而不是落盘。所有最终路径的写入都是原子的（兄弟临时文件 + 重命名），中止的转换不会留下写了一半的文件。
 | `batchMaxFiles` | `500` | 每次 `batch_convert` 最多检查的文件数；超出时会在结果里明确报告跳过了多少，而不是静默截断 |
 | `outputRoots` | `[]` | 非空时，显式指定的 `output` 路径必须落在这些目录之内（共享部署建议开启；默认写到输入文件旁的输出不受限） |
 | `ffmpegPath` / `ffprobePath` | - | ffmpeg 不在 PATH 时（Windows 常见）手动指定二进制路径 |
 | `sofficePath` / `ghostscriptPath` / `pythonPath` / `tesseractPath` | - | 各可选工具的手动路径，优先于自动探测 |
+
+**限制覆盖范围**：`maxInputMb` 作用于 convert / batch / inspect / optimize 全部入口；`maxPdfPages` 作用于 PDF 光栅化与文本提取（隐式整本与显式 `pages` 选择都受限）；`maxOutputPixels` 作用于 PDF 光栅化、OCR 渲染和 SVG 光栅化。
+
+**`timeoutMs` 取消的真实覆盖面**：外部二进制进程会被当场终止（ffmpeg、LibreOffice、Ghostscript、Tesseract CLI）；进行中的 PDF 页面渲染通过 pdf.js 渲染任务取消；tesseract.js 识别通过终止 worker 真正停止；纯 JS 流程（sharp 编码、JSON/YAML/CSV 解析）在每个步骤边界被中断，且中止后绝不写出输出文件。单个较大的同步步骤（一次 sharp 编码或一次 `JSON.parse`）无法在中途打断，但其结果会被丢弃而不是落盘。所有最终路径的写入都是原子的（兄弟临时文件 + 重命名），中止的转换不会留下写了一半的文件。
 
 ## 架构
 
@@ -240,8 +241,8 @@ npm run smoke     # 针对 lib/ 的端到端冒烟测试
 
 | 组件 | 已验证版本 |
 | --- | --- |
-| DeepSeek Harness Desktop | 0.2.1-rc.3 |
-| @deepseek-ai/dsh-tools | 0.2.1-rc.3 |
+| DeepSeek Harness Desktop | 0.2.1-rc.5 |
+| @deepseek-ai/dsh-tools | 0.2.1-rc.5 |
 | @deepseek-ai/cordis | 4.0.5 |
 | Node.js | `^22.19.0 \|\| >=24.0.0`（CI 覆盖 22） |
 
@@ -252,6 +253,7 @@ DSH 仍处于 developer preview，API 可能变化——插件把 DSH 依赖隔�
 - ~~V0.2 —— 音视频（FFmpeg）~~ **已发布**：MP4→GIF/MP3、WAV→MP3、MOV→MP4，以及按目标体积两遍编码的 `optimize_file`。
 - ~~V0.3 —— Office + PDF 工具链~~ **已发布**：LibreOffice 解锁 DOCX/PPTX/XLSX→PDF，python pdf2docx 支持实验性 PDF→DOCX，Ghostscript 支持 PDF 压缩；依赖支持按需下载并默认走国内镜像。
 - ~~V0.4 —— OCR（Tesseract）~~ **已发布**：PDF→TXT 支持 `ocr: true`（可选 `ocr_lang`），Tesseract CLI 优先 + tesseract.js 兜底，语言数据经 `install_ocr_dependencies` 显式下载。
+- ~~V0.5 —— 本地 Web UI~~ **已发布**：拖拽转换界面（实时能力矩阵驱动目标格式选择），并以「文件转换」标签页原生集成进 DSH Desktop（`webServer` 挂载 + 客户端 bundle），`open_ui` 提供独立服务器兜底；面向用户文案改为中文优先；真取消与原子写覆盖全部路径。
 - 更远：扫描件 OCR → DOCX、转换链（PPTX→PDF→PNG）、`optimize_file` 视频降分辨率、图片缩放/旋转。
 
 ## 许可

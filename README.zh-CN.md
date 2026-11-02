@@ -75,7 +75,7 @@ allowBuilds:
 
 ```sh
 git clone https://github.com/zzy-12345678/dsh-file-convert
-cd dsh-file-convert && npm install && npm run build
+cd dsh-file-convert && npx --yes npm@11.6.2 ci && npm run build
 dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 ```
 
@@ -220,12 +220,17 @@ dsh-file-convert UI is running at http://127.0.0.1:5757/ (opened in your browser
 
 ## 开发
 
+依赖解析统一使用 npm 11.6.2（CI 同样固定此版本）。本机 npm 较旧时运行 `npx --yes npm@11.6.2 ci`。保留仓库中的锁文件，不用 `--legacy-peer-deps` 生成另一套依赖图。
+
 ```sh
-npm install
+npm ci            # 使用 npm 11.6.2 和已提交的锁文件
 npm run build     # tsc -> lib/
-npm test          # vitest，105 项测试（另有个位数按环境门控的套件）
+npm test          # 发布元数据检查 + Vitest，部分套件需要可选工具
 npm run smoke     # 针对 lib/ 的端到端冒烟测试
+npm run check:release
 ```
+
+Windows 可运行 `scripts\prepare-release.cmd`，依次安装、构建、测试和打包，任一步失败立即停止。脚本只做本地准备；推送标签和发布是独立操作。发布工作流会检查 `v<版本号>` 与包及锁文件一致后再通过 OIDC 发布。
 
 本地开发会在 `devDependencies` 里拉齐 dsh-tools 的 peer 闭包，便于 typecheck 与 vitest 加载 0.2.1 工具注册表。最终用户安装插件时不需要这些——由宿主 profile 提供。
 

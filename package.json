@@ -1,6 +1,7 @@
 {
   "name": "dsh-file-convert",
-  "version": "0.5.1",
+  "version": "0.5.2",
+  "packageManager": "npm@11.6.2",
   "description": "Local-first file conversion for DeepSeek Harness - images, PDF, data, audio/video and office documents. No API keys, no uploads, no token cost.",
   "license": "MIT",
   "type": "module",
@@ -44,7 +45,8 @@
   "scripts": {
     "build": "tsc && node scripts/copy-ui-assets.mjs",
     "prepare": "npm run build",
-    "test": "vitest run",
+    "test": "node --test scripts/check-release.test.mjs && vitest run",
+    "check:release": "node scripts/check-release.mjs",
     "smoke": "node scripts/smoke-test.mjs",
     "ui": "npm run build && node lib/ui/server.js"
   },

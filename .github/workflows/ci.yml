@@ -20,6 +20,12 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Use the pinned npm resolver
+        run: npm install -g npm@11.6.2
+
+      - name: Check release metadata
+        run: node scripts/check-release.mjs
+
       - name: Install dependencies
         run: npm ci
 
@@ -63,6 +69,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Use the pinned npm resolver
+        run: npm install -g npm@11.6.2
+      - run: node scripts/check-release.mjs
       - run: npm ci
       - run: npm run build
       - name: Pack and inspect the tarball

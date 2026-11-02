@@ -18,13 +18,14 @@ jobs:
           node-version: 22
           cache: npm
           registry-url: https://registry.npmjs.org/
+      - name: Validate tag, lockfile and npm version availability
+        run: node scripts/check-release.mjs --tag "$GITHUB_REF_NAME" --check-registry
+      - name: Use the pinned npm resolver (also supports OIDC publishing)
+        run: npm install -g npm@11.6.2
       - run: npm ci
       - run: npm run build
       - run: npm test
       - run: npm run smoke
-      - name: Upgrade npm (trusted publishing needs >= 11.5.1)
-        run: npm install -g npm@latest
-
       - name: Publish to npm via OIDC trusted publishing
         run: npm publish --provenance
       - name: Create GitHub release from the tag

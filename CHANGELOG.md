@@ -1,3 +1,16 @@
+## [0.5.2] - 2026-11-03
+
+### Fixed
+
+- Rebuild the dependency lockfile for the DSH 0.2.1-rc.5 peer closure using npm 11.6.2; CI and release installs use the same pinned resolver without `--legacy-peer-deps`.
+- Reject releases when the Git tag, package version or lockfile disagree, and fail closed if npm publication status cannot be verified.
+- Retry transient registry failures with bounded timeouts; retain TLS verification and the official registry.
+- Provide a Windows release-preparation script that stops on install/build/test failures and preserves the lockfile. It prepares and packs locally; publishing remains a separate step.
+
+### Changed
+
+- Prepare 0.5.2 because the existing local `v0.5.1` tag points to the 0.5.0 source snapshot. Existing tags are preserved.
+
 ## [0.5.1] - 2026-11-02
 
 ### Changed

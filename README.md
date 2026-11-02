@@ -73,7 +73,7 @@ From a local checkout (e.g. while hacking on it):
 
 ```sh
 git clone https://github.com/zzy-12345678/dsh-file-convert
-cd dsh-file-convert && npm install && npm run build
+cd dsh-file-convert && npx --yes npm@11.6.2 ci && npm run build
 dsh plugin --profile default add /absolute/path/to/dsh-file-convert
 ```
 
@@ -240,12 +240,17 @@ Feature parity in both modes:
 
 ## Development
 
+Use npm 11.6.2 for dependency resolution (also pinned in CI). With an older npm, run `npx --yes npm@11.6.2 ci`. Keep the committed lockfile; do not use `--legacy-peer-deps` to generate a different dependency graph.
+
 ```sh
-npm install
+npm ci            # npm 11.6.2; installs the locked dependency graph
 npm run build     # tsc -> lib/
-npm test          # vitest, 105 tests (plus environment-gated suites)
+npm test          # release-metadata checks + Vitest (optional tools gate some suites)
 npm run smoke     # end-to-end against lib/
+npm run check:release
 ```
+
+On Windows, `scripts\prepare-release.cmd` installs, validates, tests and packs the current version. It stops at the first failure and does not push tags or publish. The release workflow checks that `v<version>` matches both manifests before publishing through OIDC.
 
 Local development pulls the dsh-tools peer closure into `devDependencies` so typecheck and vitest can load the 0.2.1 tool registry. End users of the published plugin do not install these — the host profile provides them.
 

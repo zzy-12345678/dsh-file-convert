@@ -6,7 +6,7 @@
 
 > **非官方社区插件。** 与 DeepSeek 官方无隶属关系。
 
-> **兼容性：** v0.5.1 起适配 DeepSeek Harness Desktop 0.2.1-rc.5 及其规范输出工具 API。`@deepseek-ai/dsh-tools` peer 精确钉在宿主运行时版本上，因此 DSH 每升一个 rc，插件需要同步发一个补丁版本；需要 Node.js `^22.19.0 || >=24.0.0`。
+> **稳定基线：** v1.0.x 固定支持 DeepSeek Harness Desktop **0.2.1-rc.5**，DSH 集成依赖使用精确版本。保留此宿主即可继续使用，官方发布新版不要求同步更新本插件；其他宿主需单独验证。需要 Node.js `^22.19.0 || >=24.0.0`。详见[安装、升级与回退说明](./STABILITY.md)。
 
 ## 为什么做这个
 
@@ -49,7 +49,7 @@ Agent 日常需要各种格式转换："把这个 PDF 转成图片"、"把这个
 
 ```sh
 # 1. 从 npm 安装（发包后可用）
-dsh plugin --profile default add dsh-file-convert
+dsh plugin --profile desktop add dsh-file-convert@1.0.0 --save-exact
 
 # 2. 直接从 GitHub 安装（会执行一次构建，需放行）
 dsh plugin --profile default add github:zzy-12345678/dsh-file-convert
@@ -251,9 +251,10 @@ Windows 可运行 `scripts\prepare-release.cmd`，依次安装、构建、测试
 | DeepSeek Harness Desktop | 0.2.1-rc.5 |
 | @deepseek-ai/dsh-tools | 0.2.1-rc.5 |
 | @deepseek-ai/cordis | 4.0.5 |
-| Node.js | `^22.19.0 \|\| >=24.0.0`（CI 覆盖 22） |
+| @deepseek-ai/schemastery | 3.18.5 |
+| Node.js | `^22.19.0 \|\| >=24.0.0`（CI 覆盖 22 和 Windows 24） |
 
-DSH 仍处于 developer preview，API 可能变化——插件把 DSH 依赖隔离在薄胶水层，适配成本被刻意压低。
+1.0.x 系列保持此宿主基线，补丁可修复缺陷，但不会为追随官方 rc 更新而更换支持的 DSH 运行时。其他宿主的适配作为独立版本决策处理。保留 `defineTool` 参数校验和宿主兼容性检查。「稳定版」指本插件的支持约定，所支持的 DSH 本身仍是官方候选版本；运行限制和恢复步骤见 [STABILITY.md](./STABILITY.md)。
 
 ## Roadmap
 

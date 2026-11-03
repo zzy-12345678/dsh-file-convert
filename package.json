@@ -1,6 +1,6 @@
 {
   "name": "dsh-file-convert",
-  "version": "0.5.2",
+  "version": "1.0.0",
   "packageManager": "npm@11.6.2",
   "description": "Local-first file conversion for DeepSeek Harness - images, PDF, data, audio/video and office documents. No API keys, no uploads, no token cost.",
   "license": "MIT",
@@ -27,6 +27,7 @@
     "cordis.patch.yml",
     "README.md",
     "README.zh-CN.md",
+    "STABILITY.md",
     "LICENSE"
   ],
   "dsh": {
@@ -58,7 +59,7 @@
     "local-first"
   ],
   "dependencies": {
-    "@deepseek-ai/schemastery": "~3.18.5",
+    "@deepseek-ai/schemastery": "3.18.5",
     "@napi-rs/canvas": "^1.0.8",
     "csv-parse": "^7.0.2",
     "csv-stringify": "^6.8.3",
@@ -69,11 +70,11 @@
     "tesseract.js": "^7.0.0"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "~4.0.5",
+    "@deepseek-ai/cordis": "4.0.5",
     "@deepseek-ai/dsh-tools": "0.2.1-rc.5"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "~4.0.5",
+    "@deepseek-ai/cordis": "4.0.5",
     "@deepseek-ai/dsh-agent": "0.2.1-rc.5",
     "@deepseek-ai/dsh-brand": "0.2.1-rc.5",
     "@deepseek-ai/dsh-llm": "0.2.1-rc.5",

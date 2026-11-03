@@ -1,3 +1,12 @@
+## [1.0.0] - 2026-11-03
+
+### Changed
+
+- Establish the 1.0.x stable support line for DeepSeek Harness Desktop 0.2.1-rc.5. New DSH release candidates do not require updates to installations that retain this host baseline.
+- Pin Cordis 4.0.5 and Schemastery 3.18.5 exactly, alongside the existing exact dsh-tools 0.2.1-rc.5 contract. Keep the conversion implementation and strict `defineTool` validation.
+- Document exact-version installation, profile backups, pnpm release-age handling and rollback. Include the support policy in the published package.
+- Cover Node.js 24 on Windows in CI in addition to Node.js 22; use current GitHub actions and the Ubuntu 24.04 runner.
+
 ## [0.5.2] - 2026-11-03
 
 ### Fixed

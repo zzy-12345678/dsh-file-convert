@@ -6,7 +6,7 @@ Convert images, PDFs and data files directly inside your DSH agent sessions — 
 
 > **Unofficial community plugin.** Not affiliated with or endorsed by DeepSeek.
 
-> **Compatibility:** v0.5.1+ targets DeepSeek Harness Desktop 0.2.1-rc.5 and its canonical-output tool API. The `@deepseek-ai/dsh-tools` peer is pinned to the exact host runtime, so a DSH rc bump needs a matching plugin patch. Node.js `^22.19.0 || >=24.0.0` is required.
+> **Stable baseline:** v1.0.x supports DeepSeek Harness Desktop **0.2.1-rc.5**, with exact DSH integration dependencies. Keep this host version to keep using the plugin; newer DSH releases do not require an update to this baseline. Compatibility with other hosts requires separate verification. Node.js `^22.19.0 || >=24.0.0` is required. See [installation, upgrades and rollback](./STABILITY.md).
 
 ## Why
 
@@ -49,7 +49,7 @@ Inside a DSH profile — three ways, easiest first:
 
 ```sh
 # 1. from npm (once published)
-dsh plugin --profile default add dsh-file-convert
+dsh plugin --profile desktop add dsh-file-convert@1.0.0 --save-exact
 
 # 2. straight from GitHub (a `prepare` build runs; allow it once)
 dsh plugin --profile default add github:zzy-12345678/dsh-file-convert
@@ -271,9 +271,10 @@ Add a conversion = add one capability row + implement it in a converter. Add a b
 | DeepSeek Harness Desktop | 0.2.1-rc.5 |
 | @deepseek-ai/dsh-tools | 0.2.1-rc.5 |
 | @deepseek-ai/cordis | 4.0.5 |
-| Node.js | `^22.19.0 \|\| >=24.0.0` (CI covers 22) |
+| @deepseek-ai/schemastery | 3.18.5 |
+| Node.js | `^22.19.0 \|\| >=24.0.0` (CI covers 22 and Windows 24) |
 
-DSH is a developer preview and its APIs will move - the plugin keeps all DSH imports inside a thin glue layer so adapting stays cheap.
+The 1.0.x line keeps this host baseline. Patches may fix defects without moving the supported DSH runtime. Supporting a different host is a separate release decision, not a reason to repin 1.0.x. The plugin retains `defineTool` argument validation and the host's compatibility checks. Stable refers to this plugin's support contract; the supported DSH release remains an official release candidate. See [STABILITY.md](./STABILITY.md) for the operating limits and recovery steps.
 
 ## Roadmap
 

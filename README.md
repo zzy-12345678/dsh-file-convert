@@ -252,6 +252,8 @@ npm run check:release
 
 On Windows, `scripts\prepare-release.cmd` installs, validates, tests and packs the current version. It stops at the first failure and does not push tags or publish. The release workflow checks that `v<version>` matches both manifests before publishing through OIDC.
 
+To recover a partially completed release, run the **Release** workflow manually on `main` with the existing tag (for example `v0.5.2`). It checks out that tag, reruns validation, skips npm publishing only when the published package belongs to the exact tagged commit, and creates the GitHub release only if it is missing. Temporary API failures are retried.
+
 Local development pulls the dsh-tools peer closure into `devDependencies` so typecheck and vitest can load the 0.2.1 tool registry. End users of the published plugin do not install these — the host profile provides them.
 
 Add a conversion = add one capability row + implement it in a converter. Add a backend = implement the `Converter` interface and register it in `createRouter()`.

@@ -232,6 +232,8 @@ npm run check:release
 
 Windows 可运行 `scripts\prepare-release.cmd`，依次安装、构建、测试和打包，任一步失败立即停止。脚本只做本地准备；推送标签和发布是独立操作。发布工作流会检查 `v<版本号>` 与包及锁文件一致后再通过 OIDC 发布。
 
+若发布只完成了一部分，可在 `main` 上手动运行 **Release** 工作流，填写原标签（例如 `v0.5.2`）。流程检出该标签并重新验证；仅当 npm 包确实来自同一标签提交时才跳过发布，GitHub Release 已存在则核验通过，缺失时创建，并重试临时 API 故障。
+
 本地开发会在 `devDependencies` 里拉齐 dsh-tools 的 peer 闭包，便于 typecheck 与 vitest 加载 0.2.1 工具注册表。最终用户安装插件时不需要这些——由宿主 profile 提供。
 
 加一种转换 = 在 converter 的能力表里加一行数据并实现它。加一类后端 = 实现 `Converter` 接口并在 `createRouter()` 注册。

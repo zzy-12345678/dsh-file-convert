@@ -4,22 +4,50 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to publish or verify
+        required: true
+        default: v0.5.2
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    defaults:
+      run:
+        working-directory: release
     permissions:
       contents: write
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Check out release automation
+        uses: actions/checkout@v5
+        with:
+          path: automation
+      - name: Check out the immutable release tag
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          path: release
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: release/package-lock.json
           registry-url: https://registry.npmjs.org/
-      - name: Validate tag, lockfile and npm version availability
-        run: node scripts/check-release.mjs --tag "$GITHUB_REF_NAME" --check-registry
+      - name: Test release recovery logic
+        run: node --test ../automation/scripts/release-state.test.mjs
+      - name: Validate tag, lockfile and published npm commit
+        id: state
+        run: node ../automation/scripts/release-state.mjs npm "$RELEASE_TAG"
       - name: Use the pinned npm resolver (also supports OIDC publishing)
         run: npm install -g npm@11.6.2
       - run: npm ci
@@ -27,9 +55,9 @@ jobs:
       - run: npm test
       - run: npm run smoke
       - name: Publish to npm via OIDC trusted publishing
+        if: steps.state.outputs.published != 'true'
         run: npm publish --provenance
-      - name: Create GitHub release from the tag
-        run: |
-          gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
+      - name: Create or verify GitHub release (with retries)
+        run: node ../automation/scripts/release-state.mjs github "$RELEASE_TAG"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

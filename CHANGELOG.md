@@ -8,6 +8,7 @@
 ### Fixed
 
 - Inject only the conversation client package, which provides the view slot and its required services; stop requesting the retired client-runtime and standalone ui-slots packages from the desktop client loader.
+- Use the official Ubuntu HTTPS archive for CI's Office dependencies and bound that installation step, avoiding prolonged downloads from a slow runner mirror.
 
 ## [1.0.0] - 2026-11-03
 

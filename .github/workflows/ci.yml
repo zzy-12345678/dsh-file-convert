@@ -35,7 +35,10 @@ jobs:
 
       - name: Install office tools (Linux)
         if: runner.os == 'Linux'
+        timeout-minutes: 10
         run: |
+          # The runner's Azure mirror can serve large Office packages very slowly.
+          printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libreoffice-writer libreoffice-calc libreoffice-impress ghostscript python3-venv
           python3 -m venv "$RUNNER_TEMP/dsh-python"

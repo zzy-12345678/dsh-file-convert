@@ -67,6 +67,19 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
         continue-on-error: true
 
+  previous-runtime:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install -g npm@11.6.2
+      - run: npm ci
+      - name: Build and test with the complete DSH 0.2.1-rc.5 peer graph
+        run: npm run test:compat
+
   package:
     runs-on: ubuntu-24.04
     steps:

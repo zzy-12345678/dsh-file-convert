@@ -1,6 +1,6 @@
 {
   "name": "dsh-file-convert",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "packageManager": "npm@11.6.2",
   "description": "Local-first file conversion for DeepSeek Harness - images, PDF, data, audio/video and office documents. No API keys, no uploads, no token cost.",
   "license": "MIT",
@@ -36,8 +36,6 @@
     },
     "client": {
       "inject": [
-        "@deepseek-ai/dsh-client-runtime",
-        "@deepseek-ai/dsh-client-ui-slots",
         "@deepseek-ai/dsh-client-ui-conversation"
       ],
       "platform": "web"
@@ -48,6 +46,7 @@
     "prepare": "npm run build",
     "test": "node --test scripts/check-release.test.mjs && vitest run",
     "check:release": "node scripts/check-release.mjs",
+    "test:compat": "node scripts/check-runtime.mjs",
     "smoke": "node scripts/smoke-test.mjs",
     "ui": "npm run build && node lib/ui/server.js"
   },
@@ -70,25 +69,26 @@
     "tesseract.js": "^7.0.0"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "4.0.5",
-    "@deepseek-ai/dsh-tools": "0.2.1-rc.5"
+    "@deepseek-ai/cordis": "4.0.5 || 4.1.0",
+    "@deepseek-ai/dsh-tools": "0.2.1-rc.5 || 0.2.2-rc.1"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "4.0.5",
-    "@deepseek-ai/dsh-agent": "0.2.1-rc.5",
-    "@deepseek-ai/dsh-brand": "0.2.1-rc.5",
-    "@deepseek-ai/dsh-llm": "0.2.1-rc.5",
-    "@deepseek-ai/dsh-ptc-runtime": "0.2.1-rc.5",
-    "@deepseek-ai/dsh-sandbox": "0.2.1-rc.5",
-    "@deepseek-ai/dsh-sandbox-policy": "0.2.1-rc.5",
-    "@deepseek-ai/dsh-scope": "0.2.1-rc.5",
-    "@deepseek-ai/dsh-session": "0.2.1-rc.5",
-    "@deepseek-ai/dsh-session-projection": "0.2.1-rc.5",
-    "@deepseek-ai/dsh-system-prompt": "0.2.1-rc.5",
-    "@deepseek-ai/dsh-tools": "0.2.1-rc.5",
-    "@deepseek-ai/dsh-user-approval": "0.2.1-rc.5",
-    "@deepseek-ai/dsh-util-values": "0.2.1-rc.5",
-    "@deepseek-ai/dsh-working-directory": "0.2.1-rc.5",
+    "@deepseek-ai/cordis": "4.1.0",
+    "@deepseek-ai/dsh-agent": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-brand": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-slots": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-llm": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-ptc-runtime": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-sandbox": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-sandbox-policy": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-scope": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-session": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-session-projection": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-system-prompt": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-tools": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-user-approval": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-util-values": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-working-directory": "0.2.2-rc.1",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.0.0",
     "docx": "^9.7.1",

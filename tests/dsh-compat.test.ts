@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
+import { resolveConfig } from '@deepseek-ai/cordis'
 import { apply } from '../src/index.js'
 import type { Config } from '../src/config.js'
 
@@ -54,7 +55,7 @@ function loadDefinitions(): ToolDefinition[] {
   return definitions
 }
 
-describe('DeepSeek Harness 0.2.1 compatibility', () => {
+describe('DeepSeek Harness supported runtime compatibility', () => {
   it('declares the current host runtime peers and bundle patch', async () => {
     const manifest = JSON.parse(
       await fs.readFile(new URL('../package.json', import.meta.url), 'utf8'),
@@ -66,8 +67,8 @@ describe('DeepSeek Harness 0.2.1 compatibility', () => {
 
     expect(manifest.dsh?.bundle?.patch).toBe('./cordis.patch.yml')
     expect(manifest.peerDependencies).toMatchObject({
-      '@deepseek-ai/cordis': '4.0.5',
-      '@deepseek-ai/dsh-tools': '0.2.1-rc.5',
+      '@deepseek-ai/cordis': '4.0.5 || 4.1.0',
+      '@deepseek-ai/dsh-tools': '0.2.1-rc.5 || 0.2.2-rc.1',
     })
     expect(manifest.engines?.node).toBe('^22.19.0 || >=24.0.0')
   })
@@ -88,10 +89,18 @@ describe('DeepSeek Harness 0.2.1 compatibility', () => {
     }
   })
 
-  it('uses the 0.2.1 strict argument validator', async () => {
+  it('keeps strict argument validation in the installed runtime', async () => {
     const convert = loadDefinitions().find((definition) => definition.name === 'convert_file')
     await expect(convert?.execute({}, {} as never)).rejects.toMatchObject({
       code: 'INVALID_ARGS',
     })
+  })
+
+  it('normalizes and rejects configuration through the actual Cordis validator', async () => {
+    const { Config } = await import('../src/config.js')
+    const config = resolveConfig({ Config }, {}) as Config
+    expect(config.quality).toBe(85)
+    expect(config.uiAutoStart).toBe(false)
+    expect(() => resolveConfig({ Config }, { quality: 101 })).toThrow()
   })
 })

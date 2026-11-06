@@ -1,5 +1,7 @@
 import fs from 'node:fs/promises'
 import http from 'node:http'
+import vm from 'node:vm'
+import { SlotCore } from '@deepseek-ai/dsh-client-ui-slots'
 import { afterAll, describe, expect, it } from 'vitest'
 import { createUiHandler } from '../src/ui/server.js'
 import { tmpDir, writeTransparentPng } from './helpers.js'
@@ -103,6 +105,38 @@ describe('UI mounted on the DSH web server', () => {
 })
 
 describe('DSH client bundle', () => {
+  it('registers and disposes the converter with the actual host slot registry', async () => {
+    const code = await fs.readFile(new URL('../src/ui/assets/client.js', import.meta.url), 'utf8')
+    const slots = new SlotCore()
+    slots.register({
+      name: 'root',
+      children: { 'conversation.view': { kind: 'list', scope: 'session' } },
+    } as never, (() => null) as never)
+    let dispose: (() => void) | undefined
+    const createElement = (tag: string, props: unknown) => ({ tag, props })
+    vm.runInNewContext(code, {
+      window: { __ModuleLoader__: { load(entry: {
+        factory(load: (id: string) => unknown): { apply(ctx: unknown): void }
+      }) {
+        const plugin = entry.factory((id) => {
+          if (id !== 'react') throw new Error(`Unexpected browser dependency: ${id}`)
+          return { createElement }
+        })
+        plugin.apply({ slots: {
+          inject(_name: string, setup: () => () => void) { dispose = setup() },
+          register: slots.register.bind(slots),
+        } })
+      } } },
+    })
+    const entries = slots.entriesOfSlot('conversation.view')
+    expect(entries).toHaveLength(1)
+    expect(entries[0].options.id).toBe('dsh-file-convert')
+    const component = entries[0].component as unknown as () => { tag: string; props: { src: string } }
+    expect(component()).toMatchObject({ tag: 'iframe', props: { src: '/dsh-file-convert/' } })
+    dispose?.()
+    expect(slots.entriesOfSlot('conversation.view')).toHaveLength(0)
+  })
+
   it('follows the __ModuleLoader__ contract and mounts a conversation.view slot', async () => {
     const code = await fs.readFile(new URL('../src/ui/assets/client.js', import.meta.url), 'utf8')
     expect(() => new Function(code)).not.toThrow()

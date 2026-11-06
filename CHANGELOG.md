@@ -1,3 +1,14 @@
+## [1.1.0] - 2026-11-06
+
+### Added
+
+- Support DeepSeek Harness Desktop 0.2.2-rc.1 with dsh-tools 0.2.2-rc.1 and Cordis 4.1.0, while retaining the explicitly supported 0.2.1-rc.5 / Cordis 4.0.5 combination.
+- Build and test the complete previous runtime dependency graph in an isolated workspace, plus configuration validation and client registration/disposal against the actual Cordis and slot registry implementations.
+
+### Fixed
+
+- Inject only the conversation client package, which provides the view slot and its required services; stop requesting the retired client-runtime and standalone ui-slots packages from the desktop client loader.
+
 ## [1.0.0] - 2026-11-03
 
 ### Changed

@@ -26,6 +26,13 @@ describe('local web UI server', () => {
     expect(page).toContain("const BASE = '';")
   })
 
+  it('never assigns innerHTML: dynamic DOM stays in createElement/textContent', async () => {
+    const page = await (await fetch(server.url)).text()
+    // Regression guard for the CodeQL "DOM text reinterpreted as HTML" finding:
+    // file names and server strings must never re-enter the HTML parser.
+    expect(page).not.toMatch(/innerHTML\s*=/)
+  })
+
   it('rejects API calls without the session token and cross-origin calls', async () => {
     expect((await fetch(new URL('api/conversions', server.url))).status).toBe(403)
     expect(

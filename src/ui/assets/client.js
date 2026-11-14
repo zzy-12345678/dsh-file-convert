@@ -20,7 +20,9 @@
         height: '100%',
         border: '0',
         borderRadius: '10px',
-        background: '#0f1115',
+        // Transparent so the page's own light/dark theme (prefers-color-scheme)
+        // sits seamlessly on the host's background without a dark flash.
+        background: 'transparent',
         minHeight: '480px',
       }
 

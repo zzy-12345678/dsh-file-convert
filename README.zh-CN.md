@@ -6,7 +6,7 @@
 
 > **非官方社区插件。** 与 DeepSeek 官方无隶属关系。
 
-> **兼容性：** v1.1.x 通过明确的 peer 版本分支支持 DeepSeek Harness Desktop **0.2.1-rc.5 和 0.2.2-rc.1**，新旧运行时的依赖图分别构建与测试。v1.0.x 继续保留 0.2.1-rc.5 的原稳定基线，其他宿主需单独验证。需要 Node.js `^22.19.0 || >=24.0.0`。详见[安装、升级与回退说明](./STABILITY.md)。
+> **兼容性：** v1.2.x 通过明确的 peer 版本分支支持 DeepSeek Harness Desktop **0.2.1-rc.5、0.2.2-rc.1 和 0.2.2-rc.3**，新旧运行时的依赖图分别构建与测试。v1.0.x 继续保留 0.2.1-rc.5 的原稳定基线，其他宿主需单独验证。需要 Node.js `^22.19.0 || >=24.0.0`。详见[安装、升级与回退说明](./STABILITY.md)。
 
 ## 为什么做这个
 
@@ -49,7 +49,7 @@ Agent 日常需要各种格式转换："把这个 PDF 转成图片"、"把这个
 
 ```sh
 # 1. 从 npm 安装（发包后可用）
-dsh plugin --profile desktop add dsh-file-convert@1.1.0 --save-exact
+dsh plugin --profile desktop add dsh-file-convert@1.2.0 --save-exact
 
 # 2. 直接从 GitHub 安装（会执行一次构建，需放行）
 dsh plugin --profile default add github:zzy-12345678/dsh-file-convert
@@ -250,12 +250,13 @@ Windows 可运行 `scripts\prepare-release.cmd`，依次安装、构建、测试
 | --- | --- |
 | DeepSeek Harness Desktop | 0.2.1-rc.5 |
 | DeepSeek Harness Desktop（新增基线） | 0.2.2-rc.1 |
-| @deepseek-ai/dsh-tools | `0.2.1-rc.5` 或 `0.2.2-rc.1`，与宿主匹配 |
-| @deepseek-ai/cordis | `4.0.5`（DSH 0.2.1-rc.5）或 `4.1.0`（DSH 0.2.2-rc.1） |
+| DeepSeek Harness Desktop（新增基线） | 0.2.2-rc.3 |
+| @deepseek-ai/dsh-tools | `0.2.1-rc.5`、`0.2.2-rc.1` 或 `0.2.2-rc.3`，与宿主匹配 |
+| @deepseek-ai/cordis | `4.0.5`（DSH 0.2.1-rc.5）或 `4.1.0`（DSH 0.2.2-rc.1 / 0.2.2-rc.3） |
 | @deepseek-ai/schemastery | 3.18.5 |
 | Node.js | `^22.19.0 \|\| >=24.0.0`（CI 覆盖 22 和 Windows 24） |
 
-1.0.x 保持原有 0.2.1-rc.5 基线；1.1.x 新增 0.2.2-rc.1，同时保留旧宿主支持。`npm run test:compat` 会在隔离目录中重新安装完整旧版 peer 依赖图并构建、测试，常规 CI 使用新版依赖图。前端只注入拥有会话视图插槽的 conversation 包，不再请求已移除的框架包。保留 `defineTool` 参数校验和宿主兼容性检查，不自动声明支持其他 rc。详见 [STABILITY.md](./STABILITY.md)。
+1.0.x 保持原有 0.2.1-rc.5 基线；1.1.x 新增 0.2.2-rc.1，1.2.x 新增 0.2.2-rc.3，同时保留旧宿主支持。`npm run test:compat` 会在隔离目录中重新安装完整旧版 peer 依赖图（0.2.1-rc.5 与 0.2.2-rc.1）并构建、测试，常规 CI 使用 0.2.2-rc.3 依赖图。前端只注入拥有会话视图插槽的 conversation 包，不再请求已移除的框架包。保留 `defineTool` 参数校验和宿主兼容性检查，不自动声明支持其他 rc。详见 [STABILITY.md](./STABILITY.md)。
 
 ## Roadmap
 

@@ -189,6 +189,13 @@ const CODE_TEXT = {
   conversion_failed: '转换失败',
 };
 
+/** HTTP 层错误码：服务端不再回传异常详情，这里给固定中文文案。 */
+const HTTP_TEXT = {
+  upload_too_large: '文件超出上传上限',
+  empty_upload: '上传内容为空',
+  internal_error: '本地服务处理失败，请稍后重试',
+};
+
 /** DOM helper: the page never assigns innerHTML, so file names and server
  *  strings can never re-enter the parser (CodeQL js/xss via innerHTML). */
 function el(tag, cls, text) {
@@ -567,7 +574,7 @@ function convert(job) {
       progress.classList.remove('on', 'indeterminate');
       const data = xhr.response || {};
       if (xhr.status !== 200 && !data.ok) {
-        return fail(`服务错误（HTTP ${xhr.status}）`, data.error);
+        return fail(HTTP_TEXT[data.code] || `服务错误（HTTP ${xhr.status}）`);
       }
       if (!data.ok) {
         job.phase = 'idle';

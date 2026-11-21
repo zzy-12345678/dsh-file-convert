@@ -49,7 +49,7 @@ Inside a DSH profile — three ways, easiest first:
 
 ```sh
 # 1. from npm (once published)
-dsh plugin --profile desktop add dsh-file-convert@1.2.1 --save-exact
+dsh plugin --profile desktop add dsh-file-convert@1.2.2 --save-exact
 
 # 2. straight from GitHub (a `prepare` build runs; allow it once)
 dsh plugin --profile default add github:zzy-12345678/dsh-file-convert

@@ -21,7 +21,7 @@
 确认 DSH Desktop 为 **0.2.1-rc.5、0.2.2-rc.1、0.2.2-rc.3 或 0.2.2-rc.5**，完全退出桌面端及托盘后，用 DSH 自带 CLI 执行：
 
 ```sh
-dsh plugin --profile desktop add dsh-file-convert@1.2.1 --save-exact
+dsh plugin --profile desktop add dsh-file-convert@1.2.2 --save-exact
 ```
 
 自定义 profile 请把 `desktop` 改为实际名称。精确版本避免继续使用旧的版本范围。只需保留 0.2.1-rc.5 旧宿主稳定基线时，可继续固定安装 `dsh-file-convert@1.0.0`。安装成功后重新启动 DSH。
@@ -48,6 +48,6 @@ dsh plugin --profile desktop add dsh-file-convert@0.5.2 --save-exact
 
 The **1.0.x** line retains **DSH Desktop 0.2.1-rc.5**, dsh-tools **0.2.1-rc.5** and Cordis **4.0.5**. **1.1.x** additionally supports **DSH Desktop 0.2.2-rc.1** with dsh-tools **0.2.2-rc.1** and Cordis **4.1.0**. **1.2.0** additionally supports **DSH Desktop 0.2.2-rc.3** with dsh-tools **0.2.2-rc.3**, and **1.2.1** additionally supports **DSH Desktop 0.2.2-rc.5** with dsh-tools **0.2.2-rc.5**, both on the same Cordis **4.1.0**. These are explicit peer-version branches, with separate full runtime build/test runs: `npm run test:compat` re-verifies all three older graphs (0.2.1-rc.5, 0.2.2-rc.1 and 0.2.2-rc.3) in isolated directories, while normal CI uses the 0.2.2-rc.5 graph. dsh-tools 0.2.2-rc.5 ships the same `lib/` code as 0.2.2-rc.3. The plugin's Schemastery **3.18.5** config is validated through Standard Schema on all supported Cordis versions. `defineTool` validation and host compatibility checks remain enabled. Other hosts require separate verification.
 
-Exit DSH, then install with `dsh plugin --profile desktop add dsh-file-convert@1.2.1 --save-exact`. Replace `desktop` for custom profiles. Keeping 1.0.0 on the older supported host remains valid. pnpm release-age policies may require a narrow exact-version exception or waiting; this is separate from host compatibility.
+Exit DSH, then install with `dsh plugin --profile desktop add dsh-file-convert@1.2.2 --save-exact`. Replace `desktop` for custom profiles. Keeping 1.0.0 on the older supported host remains valid. pnpm release-age policies may require a narrow exact-version exception or waiting; this is separate from host compatibility.
 
 Keep a private backup of the stopped profile, the matching desktop installer and version records. Profiles can contain credentials. To roll back on the same supported host, exit DSH and install `dsh-file-convert@0.5.2 --save-exact` through the same CLI. Restore the host as well if it was upgraded. 0.5.2 and 1.0.x rollbacks apply only to DSH Desktop 0.2.1-rc.5, not to 0.2.2-rc.1, 0.2.2-rc.3 or 0.2.2-rc.5. External tools, model services and operating systems retain their own lifecycle; the stable plugin version is not a promise of indefinite maintenance or compatibility with future DSH releases.

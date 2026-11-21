@@ -176,8 +176,12 @@ export async function createUiHandler(options: UiHandlerOptions = {}): Promise<U
 
       send(404, { error: 'Not found.' })
     } catch (err) {
+      // Error boundary: the full failure (stack, file paths, child-process
+      // output) stays in the local log. Clients only ever receive a fixed
+      // message and a stable code, never exception text.
+      logger.error(`dsh-file-convert UI request failed: ${describeError(err)}`)
       if (!res.headersSent) {
-        send(500, { error: err instanceof Error ? err.message : String(err) })
+        send(500, { error: 'Internal server error.', code: 'internal_error' })
       } else {
         res.destroy()
       }
@@ -215,7 +219,7 @@ export async function createUiHandler(options: UiHandlerOptions = {}): Promise<U
 
     const declaredLength = Number(req.headers['content-length'] ?? '')
     if (Number.isFinite(declaredLength) && declaredLength > maxUploadBytes) {
-      send(413, { error: `Upload exceeds the ${Math.round(maxUploadBytes / 1048576)} MB limit.` })
+      send(413, { error: `Upload exceeds the ${Math.round(maxUploadBytes / 1048576)} MB limit.`, code: 'upload_too_large' })
       req.destroy()
       return
     }
@@ -223,7 +227,7 @@ export async function createUiHandler(options: UiHandlerOptions = {}): Promise<U
     try {
       await pipeline(req, new UploadLimit(maxUploadBytes), createWriteStream(uploadPath))
       const received = (await fs.stat(uploadPath)).size
-      if (received === 0) return send(400, { error: 'Empty upload.' })
+      if (received === 0) return send(400, { error: 'Empty upload.', code: 'empty_upload' })
 
       // Outputs live in a per-job folder under out/ so they survive until the
       // user downloads them and can never collide across concurrent jobs.
@@ -280,11 +284,13 @@ export async function createUiHandler(options: UiHandlerOptions = {}): Promise<U
         files,
       })
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      if (message.startsWith('Upload exceeds')) {
-        send(413, { error: message })
+      if (err instanceof PayloadTooLargeError) {
+        // The only failure whose details are safe to state: both the limit and
+        // the message are ours, not anything the exception carried.
+        send(413, { error: `Upload exceeds the ${Math.round(err.limitBytes / 1048576)} MB limit.`, code: 'upload_too_large' })
       } else {
-        send(500, { error: message })
+        logger.error(`dsh-file-convert conversion request failed: ${describeError(err)}`)
+        send(500, { error: 'Internal server error.', code: 'internal_error' })
       }
     } finally {
       await fs.rm(workDir, { recursive: true, force: true }).catch(() => undefined)
@@ -347,6 +353,21 @@ export async function startUiServer(options: UiServerOptions = {}): Promise<UiSe
   return handleRef
 }
 
+/** Full detail for the local log only; never serialized to a response. */
+function describeError(err: unknown): string {
+  if (err instanceof Error) return err.stack ?? `${err.name}: ${err.message}`
+  return String(err)
+}
+
+/** Thrown by UploadLimit so the handler can answer 413 without inspecting
+ *  exception text (which CodeQL rightly treats as untrusted output). */
+class PayloadTooLargeError extends Error {
+  constructor(readonly limitBytes: number) {
+    super('Upload exceeds the configured size limit.')
+    this.name = 'PayloadTooLargeError'
+  }
+}
+
 /** Rejects the stream the moment it runs past the upload budget. */
 class UploadLimit extends Transform {
   private received = 0
@@ -356,7 +377,7 @@ class UploadLimit extends Transform {
   override _transform(chunk: Buffer, _enc: string, cb: (err?: Error | null, data?: Buffer) => void): void {
     this.received += chunk.length
     if (this.received > this.limit) {
-      cb(new Error(`Upload exceeds the ${Math.round(this.limit / 1048576)} MB limit.`))
+      cb(new PayloadTooLargeError(this.limit))
       return
     }
     cb(null, chunk)

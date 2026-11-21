@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises'
+import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { startUiServer } from '../src/ui/server.js'
 import { tmpDir, writeTransparentPng } from './helpers.js'
@@ -129,8 +130,30 @@ describe('local web UI server', () => {
       body: Buffer.alloc(100, 1),
     })
     expect([413, 500]).toContain(res.status)
-    const data = (await res.json()) as { error: string }
+    const data = (await res.json()) as { error: string; code?: string }
     expect(data.error).toContain('limit')
+    if (res.status === 413) expect(data.code).toBe('upload_too_large')
+  })
+
+  it('returns a fixed message and code for unexpected failures', async () => {
+    // A file where the per-job workspace directory must go makes mkdir fail
+    // with a message that names the private path; that text must not leak.
+    const dir = await tmpDir('dsh-ui-leak-')
+    const leaky = await startUiServer({ port: 0, workRoot: dir })
+    try {
+      await fs.writeFile(path.join(dir, 'jobs'), 'not a directory')
+      const res = await fetch(new URL('api/convert?name=probe.png&to=jpg', leaky.url), {
+        method: 'POST',
+        headers: { 'x-dsh-token': leaky.token },
+        body: Buffer.from('x'),
+      })
+      expect(res.status).toBe(500)
+      const body = (await res.json()) as { error: string; code: string }
+      expect(body).toEqual({ error: 'Internal server error.', code: 'internal_error' })
+      expect(JSON.stringify(body)).not.toContain(dir)
+    } finally {
+      await leaky.close()
+    }
   })
 
   it('never offers to bind a non-loopback interface', async () => {

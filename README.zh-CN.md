@@ -49,7 +49,7 @@ Agent 日常需要各种格式转换："把这个 PDF 转成图片"、"把这个
 
 ```sh
 # 1. 从 npm 安装（发包后可用）
-dsh plugin --profile desktop add dsh-file-convert@1.2.1 --save-exact
+dsh plugin --profile desktop add dsh-file-convert@1.2.2 --save-exact
 
 # 2. 直接从 GitHub 安装（会执行一次构建，需放行）
 dsh plugin --profile default add github:zzy-12345678/dsh-file-convert

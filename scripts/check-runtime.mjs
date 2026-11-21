@@ -13,6 +13,7 @@ if (!npm) throw new Error('Run this check with npm run test:compat.')
 const runtimes = [
   { dsh: '0.2.1-rc.5', cordis: '4.0.5' },
   { dsh: '0.2.2-rc.1', cordis: '4.1.0' },
+  { dsh: '0.2.2-rc.3', cordis: '4.1.0' },
 ]
 const tempRoot = path.resolve(os.tmpdir())
 function run(args, work) {
